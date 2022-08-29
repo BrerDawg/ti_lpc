@@ -97,7 +97,7 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
-
+![Audio produced by code](zz_audio.au)
 
 ```
 (linux)   edit the .sh script to call your favourite text editor: open_editor.sh  (maybe: gedit)
