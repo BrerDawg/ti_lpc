@@ -1,0 +1,2 @@
+
+defaulttexteditor $1 &

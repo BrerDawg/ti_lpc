@@ -1,0 +1,2 @@
+
+mhwaveedit $1 &
