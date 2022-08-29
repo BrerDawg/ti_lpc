@@ -21,7 +21,6 @@ The app makes use of information from MAME project and the toil of numerous arch
 
 Where peices of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.
 
-** I've not looked at this code for a number of years now, but it still compiles ok on Ubuntu 20.04.
 
 
 ## Build
@@ -98,7 +97,7 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
-![Audio produced by code](zz_audio.au)
+##### Play 'zz_audio.au' audio file to hear what this code produces.
 
 ```
 (linux)   edit the .sh script to call your favourite text editor: open_editor.sh  (maybe: gedit)
