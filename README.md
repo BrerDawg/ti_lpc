@@ -21,6 +21,7 @@ The app makes use of information from MAME project and the toil of numerous arch
 
 Where peices of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.
 
+** I've not looked at this code for a number of years now, but it still compiles on Ubuntu 20.04.4
 
 
 ## Build
@@ -31,7 +32,7 @@ To build, type: make
 
 No installation is required.
 
-If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will created a 'ti_lpc.ini' settings file, and 2 '.au' audio file in same folder.
+If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and 2 '.au' audio files in same folder.
 
 
 
