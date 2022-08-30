@@ -35,7 +35,7 @@ To build, type: make
 
 No installation is required.
 
-If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and 2 '.au' audio files in same folder.
+If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and two '.au' audio files in same folder.
 
 
 
