@@ -22,7 +22,7 @@ The app makes use of information from MAME project and the toil of numerous arch
 Where peices of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.
 
 
-** I've not looked at this code for a number of years now, but it still compiles wirhout problems on Ubuntu 20.04.
+** I've not looked at this code for a number of years now, but it still compiles without problems on Ubuntu 20.04.
 
 
 
