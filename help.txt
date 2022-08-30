@@ -4,17 +4,17 @@ ti_lpc
 ~~~~~~
 Texas Instrument Speak & Spell synthesizer, renders rom sounds/vocal hex strings to PC sound hardware/sound files. 
 
-The Speak & Spell developed in the late 1970s made use of a TMS5100 digital signal processor chip (DSP) for speech decoding. Briefly: the chip contained glottal pitch/chirp sound source(vowels), white noise source(consonants), an adjustable lattice filter and a d/a converter. Either of these sources were fed in varying proportions to the adj lattice filter (which shaped them, glottals becoming formants), then this fed the d/a converter to produce analog audio. The chip was an amazing engineering achievement at that time. The speech encoding made use of linear prediction coding (lpc) which greatly reduce data rates and therefore chip count, this allowed cost effective mass production. The audio encoding was done at the factory and stored in seperate roms as bit strings. It is these rom bit strings which were read by the above mentioned chip that controlled its elements and produced fluid sound articulation. Two 16KB 8 bit roms were required to hold enough speech to make a clever useful educational tool.
+The Speak & Spell developed in the late 1970s made use of a TMS5100 digital signal processor chip (DSP) for speech decoding. Briefly: the chip contained glottal pitch/chirp sound source(vowels), white noise source(consonants), an adjustable lattice filter and a d/a converter. Either of the 2 sound sources were fed in varying proportions to the adj lattice filter (which shaped them, the glottal source becoming formants), this then fed the d/a converter to produce analog audio. The chip was an amazing engineering achievement at that time. The speech encoding made use of linear prediction coding (lpc) which greatly reduced data rates and therefore chip count, this allowed cost effective mass production. The audio encoding was done at the factory and stored in seperate roms as bit strings. It is these rom bit strings which were read by the above mentioned chip that controlled its elements and produced fluid sound articulation. Two 16KB 8 bit roms were required to hold enough speech to make a clever useful educational tool. The bit strings which I call lpc strings below (hex byte strings), are segmented into frames, they contain which audio source to use, its period (pitch if a glottal source), amplitude gain, and filter coefficients.
 
 The TMS5100 evolved over the next few years with improvements in speech quality, e.g: TMS5200, TMS5220. Some difference are the glottal waveform shape and code lookup tables used for filter coefficients among other things. These changes make for incompatability, so vocal rom strings for one version of chip won't work well or at all with other versions. This app has tables for 3 chip numbers mentioned, so try all 3 for best sound. You can also make changes to the tables for other chip versions not included.
 
-The code was developed with gcc on Ubuntu 20.04 64 bit, it has 'pulseaudio' (linux) and 'jack' (linux) and FLTK dependencies. It compiles on Windows with msys/mingw and seems to run, but I was only able to test (for Windows) using VirtualBox which is quite clunky, especially as this app has a 2nd thread for realtime audio in addition to the gui thread.
+The code was developed with gcc on Ubuntu 18.04 64 bit, it has 'pulseaudio' and 'jack' dependency for linux, and requires the FLTK library also. Code will compile on Windows with msys/mingw and seems to run, but I was only able to test (for Windows) using VirtualBox which is quite clunky as this app has a 2nd thread for realtime audio in addition to the gui thread.
 
 Some of the code is re-purposed from other projects I've tinkered with over the years, so excuse the antiquated c style, evolving conventions and inefficiencies.
 Also note the code is not precise in sound reproduction to the hardware, but it sounds close enough.
 
 Portions of this code come from the 'Speech library for Arduino' project:  https://github.com/going-digital/Talkie,
-You will find many lpc string in that project to try, they are within c code files, but this app will accept cut/pasted versions of them, just copy the hex strings and comma delimiters, remove array names, equal signs, braces and semicolons.
+You will find many lpc strings in that project to try, they are within c code files, but this app will accept cut/pasted versions of them, just copy the hex strings and comma delimiters, remove array names, equal signs, braces and semicolons.
 
 See also: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
@@ -23,19 +23,20 @@ The app makes use of information from MAME project and the toil of numerous arch
 Where peices of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.
 
 
-** I've not looked at this code for a number of years now, but it still compiles ok on Ubuntu 20.04.
+** I've not looked at this code for a number of years now, but it still compiles without problems on Ubuntu 20.04.
 
 
 Build
 ~~~~~
 Tested with gnu gcc, for windows it compiles with msys/mingw. 
-Requires: pulseaudio(linux), jack(linux), and FLTK libraries for linking, fltk-1.3.4-2 should work ok.
+Requires: pulseaudio(linux), jack(linux), and FLTK libraries for linking, fltk-1.3.4-2 or better should work.
 
 To build, type: make
 
 No installation is required.
 
-If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and 2 '.au' audio files in same folder.
+If it built without error, then run: './ti_lpc' or 'ti_lpc.exe' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and two '.au' audio files in same folder.
+
 
 
 
@@ -59,12 +60,12 @@ UK rom1 file: cd2304.vsm
 Quick note: the 3 buttons on the right labelled: 'tms5100', 'tms5200', 'tms5220', each load predefined code tables into editbox 'tms5xxx code tables', try each of these if speech is corrupted or the wrong pitch, after you've read below.
 
 
-The left editbox 'Rom Contents' will show all the letters, numbers phrases, beeps and words in the selected rom pair, and their rom address (only for Speak & Spell roms as these roms have a certain format and contain text that was shown on the unit's fluorescent display). The rom address for each utterance on the left needs to be right clicked on to make it sound. 
+The left editbox 'Rom Contents' will show all the letters, numbers phrases, beeps and words in the selected rom pair, and their rom hex address (only for Speak & Spell roms as these roms have a certain format and contain text that was shown on the unit's fluorescent display). The rom address itself needs to be right clicked on to make it sound (not the letter or word/sentence). 
 
 The larger middle editbox 'LPC hex byte strings' holds handy scratch area for lpc hex byte strings (one hex string per line, use a colon if you want to prefix a text label, e.g: 'isle: 45,AB,36,....', 8 bit only, it can handle c code formatting e.g: 0x45,0xab.. is ok, these likewise can be right clicked to sound. Notice whenever you sound, the edit boxes 'lpc hex' has a hex string place in it. This is the last sounded string (possibly extracted from a rom depending on what editbox you right clicked it), you can play it again by hitting the Play button to the right, there is also the editbox 'lpc decml' which allows decimal strings to be entered, its also filled in when you click the Play for 'lpc hex' and visa versa.  
 
 Speech roms exist for devices other than the Speak & Spell, these roms would still sound, but you will need the rom addresses where each vocal string resides.
-You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by a fixed amounts to help explore and find string locations. You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'.
+You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by a fixed amounts to help explore and find lpc string locations, if you don't know their addresses. You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'.
 
 The app also generates a: 'zz_audio.au' sound file after each sounding, the filename, samplerate and gain can be changed as req. Also generated is a: 'zz_cummulative.au' sound file, always at 8KHz, it has all the soundings made since starting the app session.
 
