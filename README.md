@@ -13,7 +13,7 @@ Some of the code is re-purposed from other projects I've tinkered with over the 
 Also note the code is not precise in sound reproduction to the hardware, but it sounds close enough.
 
 Portions of this code come from the 'Speech library for Arduino' project:  https://github.com/going-digital/Talkie,
-You will find many lpc string in that project to try, they are within c code files, but this app will accept cut/pasted versions of them, just copy the hex strings and comma delimiters, remove array names, equal signs, braces and semicolons.
+You will find many lpc strings in that project to try, they are within c code files, but this app will accept cut/pasted versions of them, just copy the hex strings and comma delimiters, remove array names, equal signs, braces and semicolons.
 
 See also: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
@@ -23,6 +23,7 @@ Where peices of code or ideas are originated from other people, the comments in 
 
 
 ** I've not looked at this code for a number of years now, but it still compiles wirhout problems on Ubuntu 20.04.
+
 
 
 
