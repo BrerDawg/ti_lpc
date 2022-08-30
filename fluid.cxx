@@ -51,7 +51,7 @@ Fl_Input *fi_lpc_decimal=(Fl_Input *)0;
 
 Fl_Double_Window* main_window() {
   Fl_Double_Window* w;
-  { Fl_Double_Window* o = new Fl_Double_Window(980, 940, "ti_lpc_decimal");
+  { Fl_Double_Window* o = new Fl_Double_Window(985, 955, "ti_lpc_app");
     w = o; if (w) {/* empty */}
     o->labelsize(11);
     { meMain = new Fl_Menu_Bar(0, 0, 960, 20);

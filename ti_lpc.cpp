@@ -1314,6 +1314,12 @@ y=p.GetPrivateProfileLONG("Settings","WinY",100);
 cx=p.GetPrivateProfileLONG("Settings","WinCX",750);
 cy=p.GetPrivateProfileLONG("Settings","WinCY",550);
 
+if( x < 0 ) x = 0;
+if( y < 0 ) y = 0;
+
+cx = 980;
+cy = 940;
+
 wndMain->position( x , y );	
 //wndMain->size( cx , cy );	
 
@@ -4621,7 +4627,7 @@ while(1)
 			ending_cnt = 2;						//allow lattice iir empty out and to settle to zero after hitting last frame
 printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!energy_idx == 0xf\n");
 			tgt_energy = tgt_period = tgt_k9 = tgt_k8 = tgt_k7 = tgt_k6 = tgt_k5 = tgt_k4 = tgt_k3 = tgt_k2 = tgt_k1 = tgt_k0 = 0;
-			}  
+			}
 		else{
 			//get frame params
 			tgt_energy = tmsEnergy_0280[ energy_idx ];

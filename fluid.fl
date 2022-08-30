@@ -35,8 +35,8 @@ decl {string au_fname;} {public local
 Function {main_window()} {open
 } {
   Fl_Window {} {
-    label ti_lpc_decimal open
-    xywh {877 29 980 940} type Double labelsize 11 resizable visible
+    label ti_lpc_app open selected
+    xywh {310 90 985 955} type Double labelsize 11 hide resizable
   } {
     Fl_Menu_Bar meMain {open
       xywh {0 0 960 20}
@@ -160,7 +160,7 @@ Function {main_window()} {open
     }
     Fl_Value_Input fi_srate_au {
       label {au srate:}
-      callback cb_fi_srate_au selected
+      callback cb_fi_srate_au
       tooltip {sample rate to use when save .au audio file} xywh {700 98 65 20} labelsize 12 textsize 11
     }
     Fl_Value_Slider fvs_au_aud_gain {
