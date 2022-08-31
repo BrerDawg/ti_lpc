@@ -212,8 +212,7 @@ k9=-205, -132, -59, 14, 87, 160, 234, 307
 
 
 
-<video src="zz_aud.mp4"></video>
 
 # Sample
-<video src='zz_aud.mp4' width=180/>
+<video src="zz_aud.mp4"></video>
 
