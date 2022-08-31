@@ -101,7 +101,12 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
-##### Play 'zz_audio.au' audio file to hear what this code produces.
+##### Play audio file 'zz_audio.au' to hear a sample that this code produced.
+
+
+![ti_lpc_app](ti_lpc_app.jpg)
+
+
 
 ```
 (linux)   edit the .sh script to call your favourite text editor: open_editor.sh  (maybe: gedit)
@@ -208,20 +213,5 @@ k9=-205, -132, -59, 14, 87, 160, 234, 307
 ```
 
 
-![ti_lpc_app](ti_lpc_app.jpg)
-
-
-
-
-# Sample
-[<img src="https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4" width="20%">]("https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4")
-
-
-[<img src="https://github.com/BrerDawg/ti_lpc/blob/master/ti_lpc_app.jpg" width="50%">]("https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4")
-
-<video src="https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4"></video>
-
-![rendered_sample]("https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4")
-![au]([ti_lpc_app.jpg](https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4))
 
 
