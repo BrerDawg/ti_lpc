@@ -214,10 +214,10 @@ k9=-205, -132, -59, 14, 87, 160, 234, 307
 
 
 # Sample
-![rendered_sample]("https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4")
 
 <video src="https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4"></video>
 
+![rendered_sample]("https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4")
 ![au]([ti_lpc_app.jpg](https://github.com/BrerDawg/ti_lpc/blob/master/zz_aud2.mp4))
 
 
