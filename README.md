@@ -211,3 +211,6 @@ k9=-205, -132, -59, 14, 87, 160, 234, 307
 ![ti_lpc_app](ti_lpc_app.jpg)
 
 ![rendered_audio](zz_aud.mp4)
+
+<video src='zz_aud.mp4' width=180/>
+
