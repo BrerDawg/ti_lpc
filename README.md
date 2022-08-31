@@ -101,7 +101,7 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
-##### Play audio file 'zz_audio.au' to hear a sample that this code produced.
+##### Download audio file 'zz_audio.au' to hear a sample that this code produced.
 
 
 ![ti_lpc_app](ti_lpc_app.jpg)
