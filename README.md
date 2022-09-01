@@ -76,14 +76,18 @@ Note: if you set an incorrect 'pc srate' (i.e: not matching your current pc's au
 Long strings of speech (>20 secs of voicing) will take some time to render and be heard due to unoptimized samplerate conversion, it may appear the app has locked up, but if you ran app from a command line you will see its probably still processing audio by the console output.
 
 Use 'AEdit' button to open your favourite audio editor, it runs a script/bat file and passes the saved .au audio filename you specified (or 'zz_audio.au'), edit the script or batch to call whatever audio app you prefer:
-Linux script: 'open_audio_editor.sh'
-Win batch: 'open_audio_editor.bat'
+
+(linux)  : 'open_audio_editor.sh' (e.g: mhwaveedit $1 &)
+(windows): 'open_audio_editor.bat'
 
 
-You can use a (antique) program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wave file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
+You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
 Select a binary file to play using 'B.File' button.
 
+
+(linux)   edit script file to call your favourite text editor: 'open_editor.sh'  (e.g: gedit $1 &)
+(windows) edit bat file to call your favourite text editor: 'open_editor.bat'  (e.g: notepad %1)
 
 
 ## embedded graph
@@ -101,16 +105,15 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
+
+
 ##### Download audio file 'zz_audio.au' to hear a sample that this code produced.
 
 
 ![ti_lpc_app](ti_lpc_app.jpg)
 
 
-
 ```
-(linux)   edit the .sh script to call your favourite text editor: open_editor.sh  (maybe: gedit)
-(windows) edit the .bat file to call your favourite text editor: open_editor.bat  (poss: notepad)
 
 e.g: for tms5100
 isle:45,AB,36,AE,D5,56,A7,3E,CA,D4,2A,EE,96,73,D5,55,57,5F,73,9C,6B,91,1E,27,FB,04,9F,34,A3,C6,CE,89,29,9A,A5,5F,EC,13,73,72,0D,CF,27,37,DE,7E,46,32,19,29,FA,FA,8C,20,B2,9A,7D,F3,9A,89,7B,8F,70,EF,36,13,F3,39,A5,DE,69,46,1A,3B,82,BB,F3,AC,73,CC,40,A2,43,44,4A,9F,76,3E,00,00,95 45,AB,36,AE,D5,56,A7,3E,CA,D4,2A,EE,96,73,D5,55,57,5F,73,9C,6B,91,1E,27,FB,04,9F,34,A3,C6,CE,89,29,9A,A5,5F,EC,13,73,72,0D,CF,27,37,DE,7E,46,32,19,29,FA,FA,8C,20,B2,9A,7D,F3,9A,89,7B,8F,70,EF,36,13,F3,39,A5,DE,69,46,1A,3B,82,BB,F3,AC,73,CC,40,A2,43,44,4A,9F,76,3E
