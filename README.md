@@ -46,10 +46,10 @@ Place Speak & Spell unzipped roms in a dir (optional, see below). Get them from 
 
 Speak & Spell roms come in pairs, e.g: 
 
-USA rom0 file: tmc0351n2l.vsm 
+USA rom0 file: tmc0351n2l.vsm</br>
 USA rom1 file: tmc0352n2l.vsm
 
-UK rom0 file: cd2303.vsm					//quick way to to hear difference is sounding the Z letter, Zed of UK, Zee for USA
+UK rom0 file: cd2303.vsm					//quick way to to hear difference is sounding the Z letter, Zed of UK, Zee for USA</br>
 UK rom1 file: cd2304.vsm
 
 (Roms are optional, if you have hex/decimal speech strings you can use them as is without roms).
@@ -77,8 +77,8 @@ Long strings of speech (>20 secs of voicing) will take some time to render and b
 
 Use 'AEdit' button to open your favourite audio editor, it runs a script/bat file and passes the saved .au audio filename you specified (or 'zz_audio.au'), edit the script or batch to call whatever audio app you prefer:
 
-(linux)  : 'open_audio_editor.sh' (e.g: mhwaveedit $1 &)
-(windows): 'open_audio_editor.bat'
+(linux) 'open_audio_editor.sh' (e.g: mhwaveedit $1 &)</br>
+(windows) 'open_audio_editor.bat'
 
 
 You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
@@ -86,11 +86,11 @@ You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11
 Select a binary file to play using 'B.File' button.
 
 
-(linux)   edit script file to call your favourite text editor: 'open_editor.sh'  (e.g: gedit $1 &)
+(linux) edit script file to call your favourite text editor: 'open_editor.sh'  (e.g: gedit $1 &)</br>
 (windows) edit bat file to call your favourite text editor: 'open_editor.bat'  (e.g: notepad %1)
 
 
-## embedded graph
+## Embedded graph
 
 leftclick and drag to move trace on x-axis
 select a sample on a trace firstly (this also gives you keybrd focus),
