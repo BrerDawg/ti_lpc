@@ -81,7 +81,7 @@ Use 'AEdit' button to open your favourite audio editor, it runs a script/bat fil
 (windows) 'open_audio_editor.bat'
 
 
-You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
+You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
 Select a binary file to play using 'B.File' button.
 
