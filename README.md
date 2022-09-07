@@ -63,7 +63,7 @@ The left editbox 'Rom Contents' will show all the letters, numbers phrases, beep
 The larger middle editbox 'LPC hex byte strings' holds handy scratch area for lpc hex byte strings (one hex string per line, use a colon if you want to prefix a text label, e.g: 'isle: 45,AB,36,....', 8 bit only, it can handle c code formatting e.g: 0x45,0xab.. is ok, these likewise can be right clicked to sound. Notice whenever you sound, the edit boxes 'lpc hex' has a hex string place in it. This is the last sounded string (possibly extracted from a rom depending on what editbox you right clicked it), you can play it again by hitting the Play button to the right, there is also the editbox 'lpc decml' which allows decimal strings to be entered, its also filled in when you click the Play for 'lpc hex' and visa versa.  
 
 Speech roms exist for devices other than the Speak & Spell, these roms would still sound, but you will need the rom addresses where each vocal string resides.
-You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by fixed amounts to help explore and find lpc string locations, if you don't know their addresses. You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'.
+You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by a fixed amounts to help explore and find lpc string locations, if you don't know their addresses. You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'.
 
 The app also generates a: 'zz_audio.au' sound file after each sounding, the filename, samplerate and gain can be changed as req. Also generated is a: 'zz_cummulative.au' sound file, always at 8KHz, it has all the soundings made since starting the app session.
 
@@ -75,19 +75,19 @@ Note: if you set an incorrect 'pc srate' (i.e: not matching your current pc's au
 
 Long strings of speech (>20 secs of voicing) will take some time to render and be heard due to unoptimized samplerate conversion, it may appear the app has locked up, but if you ran app from a command line you will see its probably still processing audio by the console output.
 
-Use 'AEdit' button to open your favourite audio editor, it runs a script/bat file and passes the saved .au audio filename you specified (or 'zz_audio.au'), edit the script or batch to call whatever audio app you prefer:
+Use 'AEdit' button to open your favourite audio editor, it runs a script/bat file and passes the saved .au audio filename you specified (or 'zz_audio.au'), edit the script or batch to call whatever audio app you prefer (script requires execution priveledges):
 
 (linux) 'open_audio_editor.sh' (e.g: mhwaveedit $1 &)</br>
 (windows) 'open_audio_editor.bat'
 
 
-You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
+You can use an ancient program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wav file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
 Select a binary file to play using 'B.File' button.
 
 
-(linux) edit script file to call your favourite text editor: 'open_editor.sh'  (e.g: gedit $1 &)</br>
-(windows) edit bat file to call your favourite text editor: 'open_editor.bat'  (e.g: notepad %1)
+(linux) edit script file to call your favourite text editor (script requires execution priveledges): 'open_editor.sh'  (e.g: gedit $1 &)</br>
+(windows) edit bat file to call your favourite text editor (script requires execution priveledges): 'open_editor.bat'  (e.g: notepad %1)
 
 
 ## Embedded graph
@@ -214,6 +214,7 @@ k7=-256, -161, -66, 29, 124, 219, 314, 409
 k8=-256, -176, -96, -15, 65, 146, 226, 307
 k9=-205, -132, -59, 14, 87, 160, 234, 307
 ```
+
 
 
 
