@@ -816,6 +816,7 @@ dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_scalex", 1.0 );
 gph0_scalex = dd;
 
 dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_scaley0", 1.0);
+if( dd < 0.1 ) dd = 0.1;
 gph0_scaley0 = dd;
 
 
@@ -823,6 +824,7 @@ dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_posy1", 0 );
 gph0_posy1 = dd;
 
 dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_scaley1", 1.0);
+if( dd < 0.1 ) dd = 0.1;
 gph0_scaley1 = dd;
 
 
@@ -830,6 +832,7 @@ dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_posy2", 0 );
 gph0_posy2 = dd;
 
 dd=p.GetPrivateProfileDOUBLE( "Settings", "gph0_scaley2", 1.0);
+if( dd < 0.1 ) dd = 0.1;
 gph0_scaley2 = dd;
 
 dd=p.GetPrivateProfileLONG( "Settings", "gph0_selbox_idx1", -1);

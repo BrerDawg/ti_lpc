@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //v1.02 	12-may-2019			//started to incorperate rtaudio
 //v1.03 	31-may-2019			//updated to mgraph v1.13
 //v1.04 	25-oct-2020			//further fixes
+//v1.05 	18-sep-2022			//added more features, such as auto address stepping with delta and delay options, see 'addr_step_auto_val_delay',  'addr_step_auto_val_delta'
+
+
 
 #include "ti_lpc.h"
 
@@ -59,6 +62,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 Fl_Double_Window* wndMain;
 PrefWnd* pref_wnd=0;
 PrefWnd* font_pref_wnd=0;
+GCLed *led_addr_step0;
 
 //Fl_Value_Slider *fvs_aud_gain;
 string csIniFilename;
@@ -105,6 +109,7 @@ string slast_rom0_filename;
 string slast_rom1_filename;
 
 extern unsigned char phrom_rom[16][16384];
+int stop_lpc_addr = 0;
 int last_render_rom_byte_cnt = 0;							//how many rom byte consumed by the last rendering
 
 bool my_verbose = 0;
@@ -165,7 +170,7 @@ int bufcnt = 0;
 int imin = 0;
 int imax = 0;
 
-int lpccnt = 0;
+int lpccnt = 1;										//set this to show first byte has been counted
 
 audio_formats af, af2;
 st_audio_formats_tag saf;
@@ -296,6 +301,16 @@ double theta1_inc;
 
 int dbg_cnt = 0;
 
+int addr_step_auto_state = 0;	//0: stopped,  1: start sounding,  2: sounding,  3: sounding finished, 4: apply delay,  5: apply delta check addr valid - else goto stop,  6: goto step 1
+int addr_step_auto_count = 0;
+float addr_step_auto_val_delay = cn_timer_period;
+int addr_step_auto_val_delta = 1;
+float addr_step_auto_delay_sum = 0;
+
+vector<int>vaddr_hist;
+int addr_hist_pos = 0;
+
+
 
 //----------------------------- Main Menu --------------------------
 Fl_Menu_Item menuitems[] =
@@ -349,6 +364,7 @@ mytexteditor::mytexteditor( int X, int Y, int W, int H, const char* l = 0 ) : Fl
 left_button = 0;
 wstart = 0;
 wend = 0;
+id0 = 0;
 }
 
 
@@ -466,11 +482,16 @@ return Fl_Text_Editor::handle(e);
 
 
 
+int addr_history_last = 0;
 
+void addr_add_history( int addr )
+{
+if( addr_history_last == addr ) return;
+addr_history_last = addr;
 
-
-
-
+vaddr_hist.push_back( addr );
+addr_hist_pos = vaddr_hist.size() - 1;
+}
 
 
 
@@ -481,6 +502,8 @@ mytexteditor2::mytexteditor2( int X, int Y, int W, int H, const char* l = 0 ) : 
 left_button = 0;
 wstart = 0;
 wend = 0;
+
+id0 = 0;
 }
 
 
@@ -488,7 +511,7 @@ wend = 0;
 
 int mytexteditor2::handle( int e )
 {
-string s1;
+string s1, s_addr;
 
 bool need_redraw = 0;
 bool dont_pass_on = 0;
@@ -541,7 +564,7 @@ if ( e == FL_PUSH )
 
 		int cursor_pos = insert_position();
 
-		printf("te push: %d, %d, %d\n", start, end, cursor_pos );
+		printf("mytexteditor2::handle() - te push: %d, %d, %d\n", start, end, cursor_pos );
 
 
 
@@ -611,28 +634,37 @@ if ( e == FL_PUSH )
 
 			wend = ii;
 
-			printf("ws: %d, %d\n", wstart, wend );
+			printf("mytexteditor2::handle() - ws: %d, %d\n", wstart, wend );
 
 	//		buffer()->highlight( wstart, wend );
 			buffer()->select( wstart, wend );
 			s1 = buffer()->selection_text();
 
-			printf("str: '%s'\n", s1.c_str() );
+			s_addr = s1;
+			printf("mytexteditor2::handle() - str: '%s'\n", s1.c_str() );
 			sscanf( s1.c_str(), "%x", &addr );
-			printf("addr: %x\n", addr );
+			printf("mytexteditor2::handle() - addr: %x\n", addr );
 			}
 
 
-		if( ( wstart ) | ( wend ) )
+		if( ( wstart ) || ( wend ) )
 			{
 			buffer()->select( wstart, wend );
 
 			s1 = buffer()->selection_text();
 
-			printf("num: '%s', num: %04x\n", s1.c_str(), addr );
+			printf("mytexteditor2::handle() - num: '%s', num: %04x\n", s1.c_str(), addr );
+
+			printf("mytexteditor2::handle() - vaddr_hist.size() %d, addr %04x\n", vaddr_hist.size(), addr );
+			addr_add_history( addr );
 
 			talk.say_tmc0580( vsm, addr );
 
+
+			if( id0 == 1 )			//NOTE!!!!!!: id0 is set in fluid's gui, see eg: 'tb_wordlist = new Fl_Text_Buffer;' which is defined in fluid
+				{
+				fi_romaddr->value( s_addr.c_str() );	
+				}
 			need_redraw = 0;
 			dont_pass_on = 1;
 			}
@@ -775,9 +807,13 @@ mode = 0;
 
 
 
-void modify_addr( int dir )
+
+//returns 1 if addr still valid, else 0
+bool modify_addr( int dir )
 {
 int ii;
+
+bool ret = 1;
 
 string s1 = fi_romaddr->value();
 
@@ -785,14 +821,24 @@ sscanf( s1.c_str(), "%x", &ii );
 
 ii += dir;
 
-if( ii < 0 ) ii = 0;
+if( ii < 0 ) 
+	{
+	ii = 0;
+	ret = 0;
+	}
 
-if( ii >= rom_size_max ) ii = rom_size_max - 1;
+if( ii >= rom_size_max ) 
+	{
+	ii = rom_size_max - 1;
+	ret = 0;
+	}
 
-strpf( s1, "%x", ii );
+strpf( s1, "%04x", ii );
 fi_romaddr->value( s1.c_str() );
 
 last_say_offset = ii;
+
+return ret;
 }
 
 
@@ -898,8 +944,34 @@ else{
 
 
 pref_wnd->ClearToDefCtrl();			//this will clear sc struct to safe default values
+
+pref_wnd->sc.type=cnStaticTextPref;
+pref_wnd->sc.x=200;
+pref_wnd->sc.y=0;
+pref_wnd->sc.w=150;
+pref_wnd->sc.h=20;
+pref_wnd->sc.label="Nothing added here as yet";
+pref_wnd->sc.label_type = FL_NORMAL_LABEL;      //label effects such a FL_EMBOSSED_LABEL, FL_ENGRAVED_LABEL, FL_SHADOW_LABEL
+pref_wnd->sc.label_align = FL_ALIGN_LEFT;
+pref_wnd->sc.tooltip="";						//tool tip
+pref_wnd->sc.options="";	//menu button drop down options
+pref_wnd->sc.labelfont=-1;						//-1 means use fltk default
+pref_wnd->sc.labelsize=-1;						//-1 means use fltk default
+pref_wnd->sc.textfont=-1;//fl_font();
+pref_wnd->sc.textsize=-1;//fl_size();
+pref_wnd->sc.section="Settings";
+pref_wnd->sc.key="pref_static_text_dummy";
+pref_wnd->sc.keypostfix=-1;					//ini file Key post fix
+pref_wnd->sc.def="0";							//default to use if ini value not avail
+pref_wnd->sc.iretval=(int*)-1;						//address of int to be modified, -1 means none
+pref_wnd->sc.dretval=(double*)-1;				//address of double to be modified, -1 means none
+pref_wnd->sc.sretval=(string*)-1;				//address of string to be modified, -1 means none
+pref_wnd->sc.cb = cb_user1;					//address of a callback if any, 0 means none
+pref_wnd->sc.dynamic = 0;						//allow immediate dynamic change of user var
+pref_wnd->sc.uniq_id = 0;                      //allows identification of an actual control, rather that using its row and column values, don't use 0xffffffff
 pref_wnd->AddControl();
-pref_wnd->CreateRow(10);			//specify optional row height
+
+pref_wnd->CreateRow(25);			//specify optional row height
 
 /*
 pref_wnd->ClearToDefCtrl();			//this will clear sc struct to safe default values
@@ -1384,6 +1456,32 @@ fi_lpc_hex->value( m1.szptr() );
 
 load_settings_gph0( csIniFilename );
 
+
+p.GetPrivateProfileStr("Settings","address_list", "", &s1 );
+m1 = s1;
+m1.FindReplace( s1, ",", "\n", 0 );
+tb_romaddr->text( s1 .c_str() );
+
+
+
+p.GetPrivateProfileStr("Settings","address_list", "", &s1 );
+m1 = s1;
+m1.FindReplace( s1, ",", "\n", 0 );
+tb_romaddr->text( s1 .c_str() );
+
+
+p.GetPrivateProfileStr("Settings","address_auto_delta", "1", &s1 );
+fi_addr_step_delta->value( s1.c_str() );
+
+
+p.GetPrivateProfileStr("Settings","address_auto_delay", "1.5", &s1 );
+fi_addr_step_delay->value( s1.c_str() );
+
+p.GetPrivateProfileStr("Settings","fi_addr_dec_inc_val", "8", &s1 );
+fi_addr_dec_inc_val->value( s1.c_str() );
+
+
+
 if(pref_wnd!=0) pref_wnd->Load(p);
 if(font_pref_wnd!=0) font_pref_wnd->Load(p);
 
@@ -1458,6 +1556,21 @@ p.WritePrivateProfileStr("Settings","chirp", m1.str() );
 m1 = fi_lpc_hex->value();
 m1.StrToEscMostCommon1();										//convert multiline to 'c escaped'
 p.WritePrivateProfileStr("Settings","lpc_bytes", m1.str() );
+
+
+
+m1 = tb_romaddr->text();
+m1.FindReplace( s1, "\n", ",", 0 );
+p.WritePrivateProfileStr("Settings","address_list", s1 );
+
+s1 = fi_addr_step_delta->value();
+p.WritePrivateProfileStr("Settings","address_auto_delta", s1 );
+
+s1 = fi_addr_step_delay->value();
+p.WritePrivateProfileStr("Settings","address_auto_delay", s1 );
+
+s1 = fi_addr_dec_inc_val->value();
+p.WritePrivateProfileStr("Settings","fi_addr_dec_inc_val", s1 );
 
 
 if(pref_wnd!=0) pref_wnd->Save(p);
@@ -1963,7 +2076,7 @@ Fl_Input *teText = new Fl_Input(10,10,wnd->w()-20,wnd->h()-20,"");
 teText->type(FL_MULTILINE_OUTPUT);
 teText->textsize(12);
 
-strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.04", cns_build_date );
+strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.05", cns_build_date );
 st += s1;
 
 
@@ -2152,6 +2265,57 @@ say_lpc_str( fi_lpc_hex->value() );
 
 
 
+//0280_2801 chirp
+//0, 41, 43, 45, 47, 49, 51, 53, 55, 58, 60, 63, 66, 70, 73, 76, 79, 83, 87, 90, 94, 99, 103, 107, 112, 118, 123, 129, 134, 140, 147, 153
+
+//2802 chirp
+//0, 16, 18, 19, 21, 24, 26, 28, 31, 35, 37, 42, 44, 47, 50, 53, 56, 59, 63, 67, 71, 75, 79, 84, 89, 94, 100, 106, 112, 126, 141, 150
+
+//5110
+//0, 15, 16, 17, 19, 21, 22, 25, 26, 29, 32, 36, 40, 42, 46, 50, 55, 60, 64, 68, 72, 76, 80, 84, 86, 93, 101, 110, 120, 132, 144, 159
+
+
+void cb_bt_tms5110_actual()
+{
+string s1;
+
+//s1 = "chirp_hx=00,2a,d4,32,b2,12,25,14,02,e1,c5,02,5f,5a,05,0f,26,fc,a5,a5,d6,dd,dc,fc,25,2b,22,21,0f,ff,f8,ee,ed,ef,f7,f6,fa,00,03,02,01,00,00,00,00,00,00,00,00,00";
+
+s1 = "processor=tms5110\n";
+s1 += "chirp=0, 16, 18, 19, 21, 24, 26, 28, 31, 35, 37, 42, 44, 47, 50, 53, 56, 59, 63, 67, 71, 75, 79, 84, 89, 94, 100, 106, 112, 126, 141, 150";
+s1 += "\n";
+s1 += "energy=0, 1, 2, 3, 4, 6, 8, 11, 16, 23, 33, 47, 63, 85, 114, 0";
+s1 += "\n";
+s1 += "pitch_count=32";
+s1 += "\n";
+s1 += "pitch=0, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 46, 48, 50, 52, 53, 56, 58, 60, 62, 65, 68, 70, 72, 76, 78, 80, 84, 86, 91, 94, 98, 101, 105, 109, 114, 118, 122, 127, 132, 137, 142, 148, 153, 159";
+s1 += "\n";
+s1 += "k0=-501, -498, -497, -495, -493, -491, -488, -482, -478, -474, -469, -464, -459, -452, -445, -437, -412, -380, -339, -288, -227, -158, -81, -1, 80, 157, 226, 287, 337, 379, 411, 436";
+s1 += "\n";
+s1 += "k1=-328, -303, -274, -244, -211, -175, -138, -99, -59, -18, 24, 64, 105, 143, 180, 215, 248, 278, 306, 331, 354, 374, 392, 408, 422, 435, 445, 455, 463, 470, 476, 506";
+s1 += "\n";
+s1 += "k2=-441, -387, -333, -279, -225, -171, -117, -63, -9, 45, 98, 152, 206, 260, 314, 368";
+s1 += "\n";
+s1 += "k3=-328, -273, -217, -161, -106, -50, 5, 61, 116, 172, 228, 283, 339, 394, 450, 506";
+s1 += "\n";
+s1 += "k4=-328, -282, -235, -189, -142, -96, -50, -3, 43, 90, 136, 182, 229, 275, 322, 368";
+s1 += "\n";
+s1 += "k5=-256, -212, -168, -123, -79, -35, 10, 54, 98, 143, 187, 232, 276, 320, 365, 409";
+s1 += "\n";
+s1 += "k6=-308, -260, -212, -164, -117, -69, -21, 27, 75, 122, 170, 218, 266, 314, 361, 409";
+s1 += "\n";
+s1 += "k7=-256, -161, -66, 29, 124, 219, 314, 409";
+s1 += "\n";
+s1 += "k8=-256, -176, -96, -15, 65, 146, 226, 307";
+s1 += "\n";
+s1 += "k9=-205, -132, -59, 14, 87, 160, 234, 307";
+s1 += "\n";
+
+tb_chirp->text( s1.c_str() );
+say_lpc_str( fi_lpc_hex->value() );
+//talk.say_repeat();
+}
+
 
 
 
@@ -2166,7 +2330,7 @@ string s1;
 s1 = "processor=tms5200\n";
 s1 += "chirp_hx=0x00, 0x03, 0x0f, 0x28, 0x4c, 0x6c, 0x71, 0x50, 0x25, 0x26, 0x4c, 0x44, 0x1a, 0x32, 0x3b, 0x13, 0x37, 0x1a, 0x25, 0x1f, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00";
 s1 += "\n";
-s1 += "energy=0,  1,  2,  3,  4,  6,  8, 11, 16, 23, 33, 47, 63, 85, 114, 0";
+s1 += "energy=0, 1, 2, 3, 4, 6, 8, 11, 16, 23, 33, 47, 63, 85, 114, 0";
 s1 += "\n";
 s1 += "pitch_count=64";
 s1 += "\n";
@@ -2318,8 +2482,9 @@ if( cnt != 0 )
 		{
 		strpf( s1, "%02x, ", (uint8_t)bf[i] );
 		st += s1;
+	printf("cb_bt_play_lpc_decimal_actual() - [%03d] = %02x\n", i, (uint8_t)bf[i] );
 		}
-//	printf("got: %d\n", cnt );
+	printf("cb_bt_play_lpc_decimal_actual() - byte cnt: %d\n", cnt );
 
 	fi_lpc_hex->value( st.c_str() );
 	say_lpc_str( fi_lpc_hex->value() );
@@ -2333,11 +2498,188 @@ if( cnt != 0 )
 void cb_bt_addr_plus_last_actual( Fl_Widget *, void * )
 {
 modify_addr( last_render_rom_byte_cnt );
+addr_add_history( last_say_offset );
 
 //talk.say_tmc0580( vsm, last_render_rom_byte_cnt );			//'that is correct'
 
 talk.say_repeat();
 }
+
+
+
+
+
+void cb_bt_addr_enter_actual( Fl_Widget *, void * )
+{
+string s1;
+
+s1 = fi_romaddr->value();
+
+tb_romaddr->append( s1.c_str() );
+tb_romaddr->append( "\n" );
+
+//vaddr.push_back(s1);
+}
+
+
+
+
+
+
+
+
+
+void cb_fi_addr_step_combo( Fl_Widget *w, void *v )
+{
+string s1;
+
+int which = (intptr_t)v;
+
+printf( "cb_fi_addr_step_combo() - %d\n",  which );		
+
+if( which == 0 )
+	{
+	addr_step_auto_state = 0;
+	fi_addr_step_count->value("000000");
+	}
+	
+if( which == 1 )
+	{
+	addr_step_auto_state = 1;
+	addr_step_auto_count = 0;
+	}
+
+}
+
+
+
+
+
+void cb_bt_addr_step_combo( Fl_Widget *w, void *v )
+{
+string s1;
+
+int which = (intptr_t)v;
+
+printf( "cb_bt_addr_step_combo() - %d\n",  which );		
+
+if( which == 0 )
+	{
+	addr_step_auto_state = 1;
+	fi_addr_step_count->value("000000");
+	}
+	
+if( which == 1 )
+	{
+	addr_step_auto_state = 0;
+	}
+
+}
+
+
+
+
+
+
+
+void cb_bt_addr_dec_inc_val( Fl_Widget *w, void *v )
+{
+string s1;
+
+int which = (intptr_t)v;
+
+printf( "cb_bt_addr_dec_inc_val() - %d\n",  which );		
+
+
+s1 = fi_addr_dec_inc_val->value();
+int ii = 0;
+sscanf( s1.c_str(), "%d", &ii );
+
+if( which == 0 )
+	{
+	ii = -ii;
+	modify_addr( ii );
+	addr_add_history( last_say_offset );
+	talk.say_repeat();
+	}
+	
+if( which == 1 )
+	{
+	modify_addr( ii );
+	addr_add_history( last_say_offset );
+	talk.say_repeat();
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void cb_bt_addr_hist_prev_next( Fl_Widget *w, void *v )
+{
+string s1;
+
+int which = (intptr_t)v;
+
+printf( "cb_bt_addr_hist_prev_next() - %d\n",  which );
+
+if( which == 0 )
+	{
+	addr_hist_pos--;
+	if( addr_hist_pos < 0 ) addr_hist_pos = 0;
+	
+//printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr_hist_pos %d\n",  vaddr_hist.size(), addr_hist_pos );
+	if( addr_hist_pos < vaddr_hist.size() ) 
+		{
+		int addr = vaddr_hist[addr_hist_pos];
+		strpf( s1, "%04x", addr );
+	
+		fi_romaddr->value( s1.c_str() );
+		talk.say_tmc0580( vsm, addr );
+
+printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr %04x\n",  vaddr_hist.size(), addr );
+		}
+	}
+
+if( which == 1 )
+	{
+	addr_hist_pos++;
+	if( addr_hist_pos >= vaddr_hist.size() ) addr_hist_pos = vaddr_hist.size() - 1;
+	if( addr_hist_pos < 0 ) addr_hist_pos = 0;
+	
+//printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr_hist_pos %d\n",  vaddr_hist.size(), addr_hist_pos );
+	if( addr_hist_pos < vaddr_hist.size() ) 
+		{
+		int addr = vaddr_hist[addr_hist_pos];
+		strpf( s1, "%04x", addr );
+		
+		fi_romaddr->value( s1.c_str() );
+		talk.say_tmc0580( vsm, addr );
+printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr %04x\n",  vaddr_hist.size(), addr );
+		}
+	
+	}
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3113,6 +3455,14 @@ for( int i = 0; i < frames; i++ )
 		}
 	}
 
+if(flag_stop_audio)
+	{
+	flag_stop_audio = 0;
+	mode = 0;
+	aud_pos = 0;
+printf("cb_audio_proc_rtaudio() - flag_stop_audio %d\n", flag_stop_audio );
+	}
+
 //  unsigned int *bytes = (unsigned int *) data;
 //  memcpy( outputBuffer, inputBuffer, *bytes );
  return 0;
@@ -3177,7 +3527,6 @@ int aud_channels = 2;
 
 if( mode )														//playing?
 	{
-	//do loop recue if req
 	for( int i = 0; i < frames; i++ )							//audio buf load
 		{
 
@@ -3271,6 +3620,7 @@ if(flag_stop_audio)
 	flag_stop_audio = 0;
 	mode = 0;
 	aud_pos = 0;
+printf("cb_audio_process_out() - flag_stop_audio %d\n", flag_stop_audio );
 	}
 //printf("cos1: %f\n", theta1 );
 }
@@ -3492,7 +3842,7 @@ void Talkie::setPtr(uint8_t* addr)
 {
 ptrAddr = addr;
 ptrBit = 0;
-lpccnt = 0;
+lpccnt = 1;												//set this to show first byte has been counted
 	
 last_ptraddr = ptrAddr - 1;								//set up a flag to determine when a new lpc memory location is accessed, pick any lower value initially
 
@@ -3536,6 +3886,53 @@ if(show_lpc) printf( "rom addr: %04x %02x\n", ptrAddr - vsm, *ptrAddr );
 
 if( ptrAddr != last_ptraddr )				//new addr loc?
 	{
+//	string s1;
+//	if( slpc_bytes.length() == 0 ) strpf( s1, "%02X", *ptrAddr );
+//	else  strpf( s1, ",%02X", *ptrAddr );
+//	slpc_bytes += s1;
+
+//	last_ptraddr = ptrAddr;
+	}
+
+data = rev(*ptrAddr)<<8;
+if (ptrBit+bits > 8)
+	{
+	data |= rev(*(ptrAddr+1));
+	}
+
+data <<= ptrBit;
+value = data >> (16-bits);
+ptrBit += bits;
+if (ptrBit >= 8)
+	{
+	ptrBit -= 8;
+	ptrAddr++;
+	lpccnt++;
+
+	string s1;
+	strpf( s1, ",%02X", *ptrAddr );
+	slpc_bytes += s1;
+	}
+return value;
+}
+
+
+
+
+
+/*
+
+uint8_t Talkie::getBits_old(uint8_t bits) 
+{
+uint8_t value;
+uint16_t data;
+	
+if(show_lpc) printf( "rom addr: %04x %02x\n", ptrAddr - vsm, *ptrAddr );
+
+
+
+if( ptrAddr != last_ptraddr )				//new addr loc?
+	{
 	string s1;
 	if( slpc_bytes.length() == 0 ) strpf( s1, "%02X", *ptrAddr );
 	else  strpf( s1, ",%02X", *ptrAddr );
@@ -3561,10 +3958,7 @@ if (ptrBit >= 8)
 	}
 return value;
 }
-
-
-
-
+*/
 
 
 
@@ -4434,7 +4828,7 @@ update_gph0( gph0_vamp0, gph0_vamp1, gph0_vamp2 );
 
 
 
-
+int last_adress = 0;
 
 
 void Talkie::say_tmc0580( uint8_t *buf_lpc, unsigned int offset )
@@ -4449,7 +4843,7 @@ int tclock = 0;						//just a handy marker value
 
 bufcnt = 0;
 int bufptr = 0;
-int start_lpc_addr, stop_lpc_addr;
+int start_lpc_addr;
 int ptr_8KHz = 0;
 
 int smpl_cnt = 0;
@@ -4500,11 +4894,12 @@ saf.srate = 8000;
 //af.load( "", "zzcorrect0_48000.wav", 32768, saf );
 
 //if( !af.load( "", "/home/gc/Desktop/sdb2/mame_ubuntu/mame/zzgc_mame_chirp_more_gain.wav", 32768, saf ) )
-if( !af.load( "", "./zzgc_mame.wav", 32768, saf ) )
-	{
-	printf("failed af.load()\n");
-	exit(0);
-	}
+//if( !af.load( "", "./zzgc_mame.wav", 32768, saf ) )
+//	{
+//	printf("failed af.load()\n");
+//	exit(0);
+//	}
+
 
 
 
@@ -4561,6 +4956,15 @@ setPtr( addr );
 start_lpc_addr = (int)ptrAddr;
 stop_lpc_addr = start_lpc_addr;
 
+
+strpf( s1, "%02X", *ptrAddr );						//store initial byte starting from, see also 'getBits()', where further bytes are collected
+slpc_bytes += s1;
+
+
+
+//strpf( s1, "%04x", start_lpc_addr );
+//printf("start_lpc_addr: %04x \n",start_lpc_addr );
+//getchar();
 //printf("start lpc[%03d]: %02x \n", stop_lpc_addr - start_lpc_addr, *ptrAddr );
 
 bool skip_interp = 0;
@@ -4615,20 +5019,22 @@ while(1)
 	from_k0 = cur_k0 = tgt_k0;
 
 	//read new frame params
-	energy_idx = getBits(4);
+	if( ending_cnt < 0 ) energy_idx = getBits(4);
 	if (energy_idx == 0) 						//silence frame?
 		{
 		tgt_energy = 0;
 		from_energy = 0;
 		}
 	else{
-		if( energy_idx == 0xf ) 				//stop frame?
+		if( ( energy_idx == 0xf ) && ( ending_cnt < 0 ) )				//stop frame?
 			{
 			ending_cnt = 2;						//allow lattice iir empty out and to settle to zero after hitting last frame
 printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!energy_idx == 0xf\n");
 			tgt_energy = tgt_period = tgt_k9 = tgt_k8 = tgt_k7 = tgt_k6 = tgt_k5 = tgt_k4 = tgt_k3 = tgt_k2 = tgt_k1 = tgt_k0 = 0;
 			}
-		else{
+
+		if( energy_idx != 0xf )
+			{
 			//get frame params
 			tgt_energy = tmsEnergy_0280[ energy_idx ];
 			repeat = getBits(1);
@@ -4708,7 +5114,7 @@ printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!energy_idx == 0xf\n");
 			}
 		}
 
-	printf("frame_cnt[%03d]: engy_idx: %d, engy: %d, period: %d, rpt: %d\n", frame_cnt, energy_idx, tgt_energy, tgt_period, repeat );
+	printf("frame_cnt[%03d]: engy_idx: %d, engy: %d, period: %d, rpt: %d, ending_cnt: %d\n", frame_cnt, energy_idx, tgt_energy, tgt_period, repeat, ending_cnt );
 
 	if( first ) 					//first frame?
 		{
@@ -5050,6 +5456,13 @@ printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!energy_idx == 0xf\n");
 		x1 = x0 + ( ( (float)cur_k0 / mkfract) ) * u0;
 		x0 = u0;
 
+
+//	if( std::isnan(raw_stimul) )
+//		{
+//		raw_stimul = 0;
+//		}
+
+
 		u0 /= 1.0;
 		
 		if( !use_filter ) u0 = raw_stimul;
@@ -5064,6 +5477,12 @@ bool use_sine = 0;
 //		bufsamp0[ ptr ] = u0;										//store audio samples
 //		bufsamp1[ ptr ] = u0; 
 
+//	if( std::isnan(u0) )
+//		{
+//		u0 = 0;
+//		}
+
+
 u0 *= 1.5;
 
 		fbuf1[ ptr_8KHz ] = u0;										//store 8KHz sample for samplerate converter to later process
@@ -5071,8 +5490,16 @@ u0 *= 1.5;
 
 		af.push_ch0( u0 );
 		af.push_ch1( u0 );
+		
+//		if( af.sizech0 >  )
+			{
+			
+			}
+			
 //		gph0_vamp0.push_back( sin1 );
 		gph0_vamp0.push_back( u0 );
+//		printf("u0 %f  raw_stimul %f  new_frame %f\n", u0, raw_stimul, new_frame / 10.0 );
+		
 		gph0_vamp1.push_back( raw_stimul );
 //		gph0_vamp1.push_back( sin1 * 0.25 + 0.1 );
 		gph0_vamp2.push_back( new_frame / 10.0 );
@@ -5125,6 +5552,7 @@ u0 *= 1.5;
 printf( "tot_frames: %d, tot_time: %f, temp_smple_cnt: %d\n", frame_cnt, time_cur, temp_smple_cnt );
 
 fi_lpc_hex->value( slpc_bytes.c_str() );
+
 
 /*
 gph0_vamp4.clear();
@@ -5250,15 +5678,17 @@ fgph.plotxy( fgph_vx, fgph_vy0, "drky", "ofw", "drkb", "blk", "pc srate" );	//3 
 //fgph.plotxy( gph0_vx, gph0_vamp2 );
 //fgph.plot( 0,gph0_vamp2 );
 
-aud_pos = 0;												//start audio from begining
+aud_pos = 0;												//start audio from beginning
 
 if(show_lpc) printf("\n");
 
 
 
 stop_lpc_addr = (int)ptrAddr;
-last_render_rom_byte_cnt = stop_lpc_addr - start_lpc_addr;
-printf("stop  lpc[%03d]: %02x  lpccnt: %d, (addr delta: %d)\n", stop_lpc_addr - start_lpc_addr, *ptrAddr, lpccnt, stop_lpc_addr - start_lpc_addr );		
+last_render_rom_byte_cnt = lpccnt;//stop_lpc_addr - start_lpc_addr + 1;
+printf("stop  lpc[%03d]: %02x  lpccnt: %d, (addr delta: %d)\n", last_render_rom_byte_cnt, *ptrAddr, lpccnt, last_render_rom_byte_cnt );		
+
+
 
 phrase_cnt++;
 
@@ -5272,6 +5702,9 @@ af.save_malloc( "", "zz_cummulative.au", 32767, saf );
 
 mode = 1;
 aud_pos = 0;
+
+strpf( s1, "%04x", offset + last_render_rom_byte_cnt );
+fi_addr_snd_end->value( s1.c_str() );
 }
 
 
@@ -6278,6 +6711,7 @@ uint16_t ui;
 
 //letters
 int pp = 0xc;
+//pp = 0x8;
 for( int i = 0; i < 26; i++ )
 	{
 	ui = get_ptr( vsm, pp );						//get lpc's data addr
@@ -6513,6 +6947,7 @@ st += s1;
 st += "-----------------\n";
 //tb_romaddr->text( st.c_str() );
 
+bool vb = 1;
 
 
 //the four word lists
@@ -6528,10 +6963,15 @@ for( int k = 0; k < 4; k++ )									//cycle 4 word lists
 		{
 		int word_ptr = vsm[ word_list_addr + i ];				//get curr word's ptr addr
 		word_ptr |= vsm[ word_list_addr + i + 1 ]<<8;			
+
+
+int text_addr = word_ptr;
+
 		
 		s1 = "";		
 		for( int j = 0; j < 8; j++ )							//max of a letters
 			{
+
 			int byt = vsm[ word_ptr + j ];		
 			int asc = byt & 0x3f;
 			asc += 0x41;										//make ascii letter
@@ -6549,7 +6989,9 @@ for( int k = 0; k < 4; k++ )									//cycle 4 word lists
 				break;
 				}
 			}
+if(vb)printf("word list %d, text_addr: 0x%04x, lpc_addr: %s  text: %s\n", k, text_addr, s2.c_str(), s1.c_str() );
 		}
+
 
 	st += "-----------------\n";
 	}
@@ -6562,6 +7004,129 @@ return 0;
 
 
 
+void cb_timer1(void *)
+{
+string s1;
+mystr m1;
+
+
+Fl::repeat_timeout( cn_timer_period, cb_timer1 );
+
+
+
+
+//printf( "cb_timer1()\n" );
+
+// --- do transitional states ----
+if( addr_step_auto_state == 0 )
+	{
+	led_addr_step0->ChangeCol( 0 );
+	
+	addr_step_auto_delay_sum = 0;		//zero delay sum
+
+	goto done_auto_state;
+	}
+
+if( addr_step_auto_state == 1 )
+	{
+	s1 = fi_addr_step_delay->value();
+	sscanf( s1.c_str(), "%f", &addr_step_auto_val_delay );
+	if( addr_step_auto_val_delay < cn_timer_period ) addr_step_auto_val_delay = cn_timer_period;
+	if( addr_step_auto_val_delay > 10 ) addr_step_auto_val_delay = 10;
+	
+
+	s1 = fi_addr_step_delta->value();
+	sscanf( s1.c_str(), "%d", &addr_step_auto_val_delta );
+	if( addr_step_auto_val_delta == 0 ) addr_step_auto_val_delta = 1;
+	if( addr_step_auto_val_delta < -256 ) addr_step_auto_val_delta = -256;
+	if( addr_step_auto_val_delta > 256 ) addr_step_auto_val_delta = 256;
+
+	addr_step_auto_delay_sum = 0;		//zero delay sum
+
+	led_addr_step0->ChangeCol( 1 );
+	addr_step_auto_state = 2;
+	goto done_auto_state;
+	}
+
+if( addr_step_auto_state == 2 )
+	{
+	addr_step_auto_delay_sum = 0;		//zero delay sum
+
+	talk.say_repeat();					//sound speech
+	
+	addr_step_auto_state = 3;
+	goto done_auto_state;
+	}
+
+if( addr_step_auto_state == 3 )			//delay starts counting up when here
+	{
+	if( mode == 0 ) 
+		{
+		addr_step_auto_state = 4;
+		led_addr_step0->ChangeCol( 2 );
+		}
+	goto done_auto_state;
+	}
+
+if( addr_step_auto_state == 4 )
+	{
+	if( addr_step_auto_delay_sum > addr_step_auto_val_delay )
+		{
+		addr_step_auto_state = 5;
+		}
+	goto done_auto_state;
+	}
+	
+if( addr_step_auto_state == 5 )
+	{
+	addr_step_auto_delay_sum = 0;		//zero delay sum
+
+	if( !modify_addr( addr_step_auto_val_delta ) )		//addr limits reached ?
+		{
+		addr_step_auto_state = 0;	
+		}
+	else{
+		addr_step_auto_state = 6;
+		}
+		
+	addr_add_history( last_say_offset );
+	goto done_auto_state;
+	}
+
+if( addr_step_auto_state == 6 )
+	{
+	addr_step_auto_delay_sum = 0;		//zero delay sum
+
+	addr_step_auto_count++;
+	
+	addr_step_auto_state = 1;
+	
+	goto done_auto_state;
+	}
+
+done_auto_state:
+//----------------------------
+
+//printf( "state %d, mode: %d, sum %f\n", addr_step_auto_state, mode, addr_step_auto_delay_sum );
+
+
+
+
+addr_step_auto_delay_sum += cn_timer_period;
+
+strpf( s1, "%06d", addr_step_auto_count );
+fi_addr_step_count->value( s1.c_str() );
+
+if( vaddr_hist.size() == 0 )
+	{
+	strpf( s1, "addr history (0/0):" );
+	}
+else{
+	strpf( s1, "addr history (%d/%d):", addr_hist_pos+1, vaddr_hist.size() );
+	}
+bx_addr_hist_label->copy_label( s1.c_str() );
+return;
+}
 
 
 
@@ -6569,6 +7134,19 @@ return 0;
 
 
 
+void graph_nulls()
+{
+
+for( int i = 0; i < 1000; i++ )
+	{
+	gph0_vamp0.push_back( 0 );
+		
+	gph0_vamp1.push_back( 0 );
+	gph0_vamp2.push_back( 0 );
+	}
+
+update_gphs();
+}
 
 
 
@@ -6679,7 +7257,25 @@ wndMain->callback((Fl_Callback *)cb_wndmain, wndMain);
 //menu bar
 //meMain = new Fl_Menu_Bar(0, 0, wndMain->w(), 25);
 meMain->textsize(12);
-meMain->copy(menuitems, wndMain);
+meMain->copy( menuitems, wndMain );
+
+
+
+led_addr_step0 = new GCLed( bx_addr_step_led->x(), bx_addr_step_led->y(), 12, 12, "");
+led_addr_step0->labelsize( 9 );	
+led_addr_step0->align( FL_ALIGN_LEFT );
+led_addr_step0->tooltip( "address auto stepping state\nred: stopped,\nyel: sounding,\ngreen: stepping address" );	
+led_addr_step0->led_style = cn_gcled_style_square;
+led_addr_step0->SetColIndex( 0, 255, 80, 80 );	
+led_addr_step0->SetColIndex( 1, 255, 165, 80 );	
+led_addr_step0->SetColIndex( 2, 80, 255, 80 );	
+led_addr_step0->ChangeCol( 0 );
+
+wndMain->add( led_addr_step0 );
+bx_addr_step_led->hide();
+
+//led_addr_step0->callback( cb_led0, 0 );
+
 
 
 make_pref_wnd();
@@ -6690,8 +7286,8 @@ make_font_pref_wnd();
 LoadSettings(csIniFilename); 
 
 
-
-
+ 
+fi_addr_step_count->value("?");
 
 
 b_use_jack =  pref_use_jack;
@@ -6705,6 +7301,14 @@ ck_interp->value(1);
 use_filter = 1;
 ck_filter->value(1);
 
+
+
+
+
+
+
+
+
 vsm = (uint8_t*) malloc( rom_size_max );
 bufsamp0 = (float*) malloc( bufsamp_sz * sizeof(float) );
 bufsamp1 = (float*) malloc( bufsamp_sz * sizeof(float) );
@@ -6717,8 +7321,12 @@ build_rom_word_addr_list( 0x4000, slast_rom1_filename );
 start_audio( wndMain );
 
 
+
 wndMain->show(argc, argv);
 
+graph_nulls();				//put somthing in graphs so on exit the traces will have their y-axis offset stored incase no sounding was made before exit
+ 
+ 
 //extern void test_fast_mgraph();
 //test_fast_mgraph();
 
@@ -6745,8 +7353,9 @@ int last_addr = 0xf03;
 s1 = fi_romaddr->value();
 sscanf( s1.c_str(),"%x", &last_addr );
 
-say_lpc_str( fi_lpc_hex->value() );
+//say_lpc_str( fi_lpc_hex->value() );
 
+Fl::add_timeout( cn_timer_period, cb_timer1 );		//update controls, post queued messages
 
 int iAppRet=Fl::run();
 

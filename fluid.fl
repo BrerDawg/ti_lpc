@@ -35,16 +35,16 @@ decl {string au_fname;} {public local
 Function {main_window()} {open
 } {
   Fl_Window {} {
-    label ti_lpc_app open selected
-    xywh {310 90 985 955} type Double labelsize 11 hide resizable
+    label ti_lpc_app open
+    xywh {299 78 990 970} type Double labelsize 11 resizable visible
   } {
     Fl_Menu_Bar meMain {open
-      xywh {0 0 960 20}
+      xywh {0 0 990 20}
     } {}
     Fl_Button {} {
       label Sel
       callback cb_bt_romfile_sel
-      tooltip {select a vsm rom, need to do this for both roms as they are paired} xywh {925 25 35 20} labelsize 11
+      tooltip {select a vsm rom, need to do this for both roms as they are paired} xywh {952 25 35 20} labelsize 11
     }
     Fl_Button {} {
       label Play
@@ -59,41 +59,41 @@ Function {main_window()} {open
     Fl_Input fi_romfname {
       label {rom0:}
       callback cb_fi_romfname
-      tooltip {enter a rom filename for addr: 0x0000 (16KB), remember roms are paired, so select both together} xywh {45 25 865 20} labelsize 11 when 1 textsize 11
+      tooltip {enter a rom filename for addr: 0x0000 (16KB), remember roms are paired, so select both together} xywh {45 25 905 20} labelsize 11 when 1 textsize 11
     }
     Fl_Value_Slider fvs_aud_gain {
       label gain
       callback cb_fvs_aud_gain
-      tooltip {adj audio level to sound hardware} xywh {920 219 25 153} labelsize 9 minimum 300 maximum 0 textsize 7
+      tooltip {adj audio level to sound hardware} xywh {940 391 25 94} labelsize 9 minimum 300 maximum 0 textsize 7
     }
     Fl_Text_Editor te_romaddr {
       label { }
-      tooltip {lpc addresses from rom, right click on an address to render audio} xywh {820 197 75 180}
+      tooltip {lpc addresses from rom (hex), hit Enter button to add to this, right click on an address to render audio} xywh {840 197 50 178}
       class mytexteditor2
     }
     Fl_Text_Editor te_lpcdata {
       label {LPC hex byte strings}
-      tooltip {lpc hex byte stream, one stream per line, right click on a line to render audio} xywh {245 196 565 180} labelsize 12
+      tooltip {lpc hex byte stream, one stream per line, right click on a line to render audio} xywh {245 196 595 180} labelsize 12
       class mytexteditor
     }
     Fl_Text_Editor te_wordlist {
-      label {Speak Spell's Rom Contents}
+      label {Speak Spell's Rom Contents (UK/USA)}
       tooltip {word lists read from both roms( only valid for speak & spell roms pairs), right click on an address on the left to render audio} xywh {5 196 240 180} labelsize 12
       class mytexteditor2
     }
     Fl_Text_Editor te_chirp {
       label {tms5xxx code tables}
-      tooltip {enter hex byte (or decimal number) strings, one line per param, chirp wfm, energy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click on buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx=0A,0xa,... for hex)} xywh {5 398 895 220} labelsize 13
+      tooltip {enter hex byte (or decimal number) strings, one line per param, chirp wfm, energy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click on buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx=0A,0xa,... for hex)} xywh {5 398 910 222} labelsize 13
     }
     Fl_Input fi_romaddr {
       label {addr:}
       callback cb_fi_romaddr
-      tooltip {enter a rom address to utter} xywh {820 176 75 20} labelsize 11 when 10 textsize 11
+      tooltip {enter a rom address to utter (hex)} xywh {840 176 50 20} labelsize 11 when 10 textsize 11
     }
     Fl_Button {} {
       label AEdit
       callback cb_bt_open_audio_editor
-      tooltip {open audio editor, edit script/bat to start your favourite audio editor, see:  Linux: 'open_audio_editor.sh',   Win: 'open_audio_editor.bat'} xywh {925 97 50 20} labelsize 11
+      tooltip {open audio editor, edit script/bat to start your favourite audio editor, see:  Linux: 'open_audio_editor.sh',   Win: 'open_audio_editor.bat'} xywh {937 97 50 20} labelsize 11
     }
     Fl_Check_Button ck_interp {
       label interp
@@ -116,42 +116,42 @@ Function {main_window()} {open
     Fl_Button {} {
       label {+}
       callback cb_bt_addr_plus
-      tooltip {go up one address and play} xywh {898 185 15 15} labelsize 8
+      tooltip {go up one address and play} xywh {893 223 15 15} labelsize 8
     }
     Fl_Button {} {
       label {-}
       callback cb_bt_addr_minus
-      tooltip {go down one address and play} xywh {898 200 15 15} labelsize 9
+      tooltip {go down one address and play} xywh {893 238 15 15} labelsize 9
     }
     Fl_Button {} {
       label {+4}
       callback cb_bt_addr_plus4
-      tooltip {go up 4 addresses and play} xywh {916 185 25 15} labelsize 8
+      tooltip {go up 4 addresses and play} xywh {911 223 19 15} labelsize 8
     }
     Fl_Button {} {
       label {-4}
       callback cb_bt_addr_minus4
-      tooltip {go down 4 addresses and play} xywh {916 200 25 15} labelsize 8
+      tooltip {go down 4 addresses and play} xywh {911 238 19 15} labelsize 8
     }
     Fl_Input fi_romfname1 {
       label {rom1:}
       callback cb_fi_romfname1
-      tooltip {enter a 2nd rom filename for addr: 0x4000 (16KB), remember roms are paired, so select both together} xywh {45 46 865 20} labelsize 11 when 1 textsize 11
+      tooltip {enter a 2nd rom filename for addr: 0x4000 (16KB), remember roms are paired, so select both together} xywh {45 46 905 20} labelsize 11 when 1 textsize 11
     }
     Fl_Button {} {
       label Sel
       callback cb_bt_romfile1_sel
-      tooltip {select a vsm rom, need to do this for both roms as they are paired} xywh {925 46 35 20} labelsize 11
+      tooltip {select a vsm rom, need to do this for both roms as they are paired} xywh {952 46 35 20} labelsize 11
     }
     Fl_Input fi_lpc_hex {
       label {lpc hex:}
       callback cb_fi_lpc_hex
-      tooltip {lpc hex byte stream (from last rendering), click play on right to re-render audio} xywh {65 133 830 20} labelsize 11 when 1 textsize 11
+      tooltip {lpc hex byte stream (from last rendering), click play on right to re-render audio} xywh {65 133 825 20} labelsize 11 when 1 textsize 11
     }
     Fl_Button {} {
       label Play
       callback cb_bt_play_lpc_hex
-      tooltip {play lpc hex data} xywh {895 133 40 20} labelsize 11
+      tooltip {play lpc hex data} xywh {893 133 40 20} labelsize 11
     }
     Fl_Check_Button ck_pitch_6bits {
       label pitch6bits
@@ -161,51 +161,148 @@ Function {main_window()} {open
     Fl_Value_Input fi_srate_au {
       label {au srate:}
       callback cb_fi_srate_au
-      tooltip {sample rate to use when save .au audio file} xywh {700 98 65 20} labelsize 12 textsize 11
+      tooltip {sample rate to use when saving the .au audio file} xywh {718 98 65 20} labelsize 12 textsize 11
     }
     Fl_Value_Slider fvs_au_aud_gain {
       label {au file gain}
       callback cb_fvs_au_aud_gain
-      tooltip {set the audio gain when saving to audio file, 100 is unity} xywh {770 97 150 21} type Horizontal box UP_BOX labelsize 9 maximum 300 value 100 textsize 7
+      tooltip {set the audio gain when saving to audio file, 100 is unity} xywh {785 97 150 21} type Horizontal box UP_BOX labelsize 9 maximum 300 value 100 textsize 7
     }
     Fl_Input fi_au_fname {
       label {au fname:}
-      tooltip {enter .au filename to save audio into} xywh {70 98 560 20} labelsize 11 when 1 textsize 11
+      tooltip {enter .au filename to save audio into} xywh {65 98 590 20} labelsize 11 when 1 textsize 11
     }
     Fl_Button {} {
       label tms5100
       callback cb_bt_tms5100
-      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {910 398 65 20} labelsize 11
+      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {918 509 65 20} labelsize 11
     }
     Fl_Button {} {
       label tms5220
       callback cb_bt_tms5220
-      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {910 448 65 20} labelsize 11
+      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {918 581 65 20} labelsize 11
     }
     Fl_Button {} {
       label {+last}
       callback cb_bt_addr_plus_last
-      tooltip {add last rendered byte count to address and play} xywh {944 185 35 15} labelsize 9 resizable
+      tooltip {add last rendered byte count to address and play, this does not work well for words that have text bytes before their lpc byte strings, it's not easy to discern between text bytes and lpc strings without a table of rom's organisation} xywh {954 238 33 15} labelsize 9
     }
     Fl_Button {} {
       label tms5200
       callback cb_bt_tms5200
-      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {910 423 65 20} labelsize 11
+      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {918 557 65 20} labelsize 11
     }
     Fl_Input fi_lpc_decimal {
       label {lpc decml:}
       callback cb_fi_lpc_decimal
-      tooltip {lpc decimal number stream (from last rendering), click play on right to re-render audio} xywh {65 153 830 20} labelsize 11 when 1 textsize 11
+      tooltip {lpc decimal number stream (from last rendering), click play on right to re-render audio} xywh {65 153 825 20} labelsize 11 when 1 textsize 11
     }
     Fl_Button {} {
       label Play
       callback cb_bt_play_lpc_decimal
-      tooltip {play lpc decimal data} xywh {895 153 40 20} labelsize 11
+      tooltip {play lpc decimal data} xywh {893 153 40 20} labelsize 11
     }
     Fl_Button {} {
       label {B.File}
       callback cb_bt_play_lpc_file
       tooltip {play lpc hex data from a binary file} xywh {935 133 40 20} labelsize 11
+    }
+    Fl_Button {} {
+      label Play
+      callback cb_bt_addr_play
+      tooltip {play lpc at address} xywh {893 177 40 20} labelsize 11
+    }
+    Fl_Button {} {
+      label Enter
+      callback cb_bt_addr_enter
+      tooltip {enter address in list} xywh {934 177 40 20} labelsize 11
+    }
+    Fl_Input fi_addr_step_delay {
+      label {delay:}
+      user_data 1
+      callback cb_fi_addr_step_combo
+      tooltip {delay in secs between auto address stepping, e.g: 0.5} xywh {926 297 45 20} labelsize 11 when 10 textsize 11
+    }
+    Fl_Input fi_addr_step_delta {
+      label {delta:}
+      user_data 0
+      callback cb_fi_addr_step_combo
+      tooltip {amount to auto address step by (decimal), e.g: 2    or   -1} xywh {926 318 45 20} labelsize 11 when 10 textsize 11
+    }
+    Fl_Button {} {
+      label Start
+      user_data 0
+      callback cb_bt_addr_step_combo
+      tooltip {start auto address stepping} xywh {893 342 36 17} labelsize 9
+    }
+    Fl_Button {} {
+      label Stop
+      user_data 1
+      callback cb_bt_addr_step_combo
+      tooltip {stop auto address stepping} xywh {932 342 35 17} labelsize 9
+    }
+    Fl_Input fi_addr_step_count {
+      label {count:}
+      user_data 2
+      callback cb_fi_addr_step_combo
+      tooltip {count of the number of auto address steps attempted} xywh {932 361 45 20} labelsize 11 when 10 textsize 11
+    }
+    Fl_Box bx_addr_step_led {
+      xywh {970 345 12 12} box BORDER_BOX
+    }
+    Fl_Input fi_addr_snd_end {
+      label {snd end:}
+      tooltip {approx end address reached in rom after speech was sounded (in hex), could be out by a few bytes, will show number of bytes parsed if sounding from a hex string (i.e. not from a rom address)} xywh {941 200 46 20} labelsize 11 when 10 textsize 11
+    }
+    Fl_Button {} {
+      label {-}
+      user_data 0
+      callback cb_bt_addr_dec_inc_val
+      tooltip {dec address by defined amount} xywh {893 258 15 15} labelsize 9
+    }
+    Fl_Input fi_addr_dec_inc_val {
+      tooltip {enter a value to dec/inc address by (decimal)} xywh {911 255 44 20} labelsize 11 when 10 textsize 11 resizable
+    }
+    Fl_Button {} {
+      label {+}
+      user_data 1
+      callback cb_bt_addr_dec_inc_val
+      tooltip {inc address by defined amount} xywh {958 258 15 15} labelsize 9
+    }
+    Fl_Button {} {
+      label {+8}
+      callback cb_bt_addr_plus8
+      tooltip {go up 8 addresses and play} xywh {933 223 19 15} labelsize 8
+    }
+    Fl_Button {} {
+      label {-8}
+      callback cb_bt_addr_minus8
+      tooltip {go down 8 addresses and play} xywh {933 238 19 15} labelsize 8
+    }
+    Fl_Box {} {
+      label {Auto Step}
+      tooltip {Address auto stepping, enter params and hit Start button} xywh {905 281 70 15} labelsize 9
+    }
+    Fl_Button {} {
+      label {@<-}
+      user_data 0
+      callback cb_bt_addr_hist_prev_next
+      tooltip {previous address history} xywh {744 174 24 20} labelsize 8
+    }
+    Fl_Button {} {
+      label {@->}
+      user_data 1
+      callback cb_bt_addr_hist_prev_next
+      tooltip {next address history} xywh {771 174 24 20} labelsize 8
+    }
+    Fl_Box bx_addr_hist_label {
+      label {addr history (????/????):}
+      tooltip {Address auto stepping, enter params and hit Start button} xywh {605 177 135 15} labelsize 11
+    }
+    Fl_Button {} {
+      label tms5110
+      callback cb_bt_tms5110
+      tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {918 533 65 20} labelsize 11
     }
   }
   code {tb_lpcdata = new Fl_Text_Buffer;
@@ -219,7 +316,8 @@ te_romaddr->textfont(4);} {}
   code {tb_wordlist = new Fl_Text_Buffer;
 te_wordlist->buffer( tb_wordlist );
 te_wordlist->textsize(12);
-te_wordlist->textfont(4);} {}
+te_wordlist->textfont(4);
+te_wordlist->id0 = 1;} {}
   code {tb_chirp = new Fl_Text_Buffer;
 te_chirp->buffer( tb_chirp );
 te_chirp->textsize(12);
@@ -295,6 +393,7 @@ unsigned int addr;
 sscanf( s1.c_str(), "%x", &addr );
 
 printf("addr: %x\\n", addr );
+addr_add_history( addr );
 talk.say_tmc0580( vsm, addr );} {}
 }
 
@@ -339,6 +438,7 @@ Function {cb_bt_addr_plus(Fl_Widget*, void*)} {open
 } {
   code {printf("cb_bt_addr_plus\\n");
 modify_addr( 1 );
+addr_add_history( last_say_offset );
 talk.say_repeat();} {}
 }
 
@@ -346,6 +446,7 @@ Function {cb_bt_addr_minus(Fl_Widget*, void*)} {open
 } {
   code {printf("cb_bt_addr_minus\\n");
 modify_addr(-1);
+addr_add_history( last_say_offset );
 talk.say_repeat();} {}
 }
 
@@ -353,6 +454,7 @@ Function {cb_bt_addr_plus4(Fl_Widget*, void*)} {open
 } {
   code {printf("cb_bt_addr_plus4\\n");
 modify_addr(4);
+addr_add_history( last_say_offset );
 talk.say_repeat();} {}
 }
 
@@ -360,6 +462,7 @@ Function {cb_bt_addr_minus4(Fl_Widget*, void*)} {open
 } {
   code {printf("cb_bt_addr_minus4\\n");
 modify_addr(-4);
+addr_add_history( last_say_offset );
 talk.say_repeat();} {}
 }
 
@@ -439,6 +542,13 @@ Function {cb_bt_tms5100(Fl_Widget *w, void*)} {open
 cb_bt_tms5100_actual();} {}
 }
 
+Function {cb_bt_tms5110(Fl_Widget *w, void*)} {open
+} {
+  code {printf("cb_bt_tms5110\\n");
+cb_bt_tms5110_actual();} {selected
+  }
+}
+
 Function {cb_bt_tms5200(Fl_Widget *w, void*)} {open
 } {
   code {printf("cb_bt_tms5200\\n");
@@ -455,4 +565,34 @@ Function {cb_bt_play_lpc_file(Fl_Widget*, void*)} {open
 } {
   code {printf("cb_bt_play_lpc_file()\\n");
 cb_bt_play_lpc_file_actual();} {}
+}
+
+Function {cb_bt_addr_play(Fl_Widget*, void*)} {open
+} {
+  code {printf("cb_bt_addr_play\\n");
+modify_addr( 0 );
+talk.say_repeat();} {}
+}
+
+Function {cb_bt_addr_enter(Fl_Widget*w, void*v)} {open
+} {
+  code {printf("cb_bt_addr_enter\\n");
+cb_bt_addr_enter_actual( w, v );
+talk.say_repeat();} {}
+}
+
+Function {cb_bt_addr_plus8(Fl_Widget*, void*)} {open
+} {
+  code {printf("cb_bt_addr_plus8\\n");
+modify_addr(8);
+addr_add_history( last_say_offset );
+talk.say_repeat();} {}
+}
+
+Function {cb_bt_addr_minus8(Fl_Widget*, void*)} {open
+} {
+  code {printf("cb_bt_addr_minus8\\n");
+modify_addr(-8);
+addr_add_history( last_say_offset );
+talk.say_repeat();} {}
 }

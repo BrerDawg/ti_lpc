@@ -179,6 +179,10 @@ bool left_button;
 int wstart;
 int wend;
 
+public:
+int id0;
+
+
 public:											//public functions
 mytexteditor( int X, int Y, int W, int H, const char* l );
 
@@ -197,6 +201,9 @@ private:
 bool left_button;
 int wstart;
 int wend;
+
+public:
+int id0;
 
 public:											//public functions
 mytexteditor2( int X, int Y, int W, int H, const char* l );

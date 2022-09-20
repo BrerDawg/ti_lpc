@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 //ti_lpc.h
-//v1.02			
+//v1.05			
 
 
 
@@ -90,6 +90,7 @@ using namespace std;
 #define cnGap 2
 #define cnCslHei 125
 
+#define cn_timer_period (0.05f)
 
 //linux code
 #ifndef compile_for_windows
@@ -129,21 +130,30 @@ extern void set_new_srate( int sr );
 extern void set_new_srate_au( int sr );
 extern void stop_play();
 extern void cb_help(Fl_Widget *, void *);
-extern void modify_addr( int dir );
+extern bool  modify_addr( int dir );
 extern void say_lpc_str( string ss );
 extern void say_lpc_bytes( uint8_t *buf, int cnt );
 extern bool bperiod_6bits;
 void cb_fi_lpc_chirp( Fl_Widget *w, void *v );
 void cb_bt_tms5100_actual();
+void cb_bt_tms5110_actual();
 void cb_bt_tms5200_actual();
 void cb_bt_tms5220_actual();
 void cb_bt_addr_plus_last_actual( Fl_Widget *, void * );
+void cb_bt_addr_enter_actual( Fl_Widget *, void * );
 void cb_fi_lpc_hex_actual();
 void cb_fi_lpc_decimal_actual();
 void cb_bt_play_lpc_hex_actual();
 void cb_bt_play_lpc_decimal_actual();
 void cb_open_audio_editor_actual();
 void cb_bt_play_lpc_file_actual();
+void cb_fi_addr_step_combo( Fl_Widget *w, void *v );
+void cb_bt_addr_step_combo( Fl_Widget *w, void *v );
+void cb_bt_addr_dec_inc_val( Fl_Widget *w, void *v );
+void cb_bt_addr_hist_prev_next( Fl_Widget *w, void *v );
+void addr_add_history( int addr );
+
+extern unsigned int last_say_offset;
 
 void open_audio_editor();
 

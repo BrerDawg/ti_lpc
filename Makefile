@@ -17,7 +17,7 @@ ifneq ($(OS),Windows_NT)			#linux?
 	OPTMZ=-O0						# !!!!!!!!!!! -O0 for fast compile, see below specific optimization for certain sources
 	SIMD=
 
-	CFLAGS=-g -fpermissive -Wno-narrowing -fno-inline -Dbuild_date="\"`date +%Y-%b-%d`\"" #-Dbuild_date="\"2016-Mar-23\"" `pkg-config --cflags libpulse-simple` `pkg-config --cflags rtaudio`
+	CFLAGS=-g -Wfatal-errors -Wfatal-errors -fpermissive -Wno-narrowing -fno-inline -Dbuild_date="\"`date +%Y-%b-%d`\"" #-Dbuild_date="\"2016-Mar-23\"" `pkg-config --cflags libpulse-simple` `pkg-config --cflags rtaudio`
 #	LIBS=-L/usr/X11/lib -L/usr/local/lib /usr/local/lib/libfltk_gl.a /usr/local/lib/libfltk_images.a /usr/local/lib/libfltk.a /usr/local/lib/libfltk_png.a -lz -ljpeg -lrt -lm -lXcursor -lXfixes -lXext -lXft -lfontconfig -lXinerama -lpthread -ldl -lX11 -lasound -ljack -lfluidsynth -lglut -lGL -lGLU #-lglfw -lfftw3
 #	INCLUDE= -I/usr/local/include
 	LIBS=-lfltk -lX11 -lrt -lm -lXcursor -lXfixes -lXext -lXft -lfontconfig -lXinerama -lXrender -lpthread -ldl -lX11 -lasound -ljack -lasound `pkg-config --libs rtaudio`	#64 bit
