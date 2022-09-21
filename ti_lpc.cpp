@@ -5114,7 +5114,7 @@ printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!energy_idx == 0xf\n");
 			}
 		}
 
-	printf("frame_cnt[%03d]: engy_idx: %d, engy: %d, period: %d, rpt: %d, ending_cnt: %d\n", frame_cnt, energy_idx, tgt_energy, tgt_period, repeat, ending_cnt );
+	if(1)printf("frame_cnt[%03d]: engy_idx: %d, engy: %d, period: %d, rpt: %d, ending_cnt: %d\n", frame_cnt, energy_idx, tgt_energy, tgt_period, repeat, ending_cnt );
 
 	if( first ) 					//first frame?
 		{
@@ -5597,7 +5597,14 @@ printf("sample rate conversion 8KHz --> %d, samples: %f, nyquist: %f\n", srate, 
 //samples for pc audio
 for( int i = 0; i < (ptr_8KHz * (1.0/srconv_ratio)); i++ )
 	{
+//usage --->		//float qdss_resample_float( float x, float *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth )
 	float srconv_val = qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate, fir_wndw );
+
+
+//		bool end_reached;
+//usage --->		//float farrow_resample_float( float sampleIndexOutput, float *bf, unsigned int bfsize, bool &end_reached )
+//		float srconv_val = farrow_resample_float(cur_sample,  fbuf1, ptr_8KHz, end_reached );
+
 	cur_sample += srconv_ratio;
 
 	if(  i < bufsamp_sz )
@@ -5637,7 +5644,17 @@ printf("sample rate conversion .au file: 8KHz --> %d, samples: %f, nyquist: %f\n
 	//samples for .au audio file
 	for( int i = 0; i < (ptr_8KHz * (1.0/srconv_ratio)); i++ )
 		{
+//usage --->		//float qdss_resample_float( float x, float *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth )
 		float srconv_val = qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate_au, fir_wndw );
+
+//		bool end_reached;
+//usage --->		//float farrow_resample_float( float sampleIndexOutput, float *bf, unsigned int bfsize, bool &end_reached )
+//		float srconv_val = farrow_resample_float(cur_sample,  fbuf1, ptr_8KHz, end_reached );
+	
+		//bool end_reached;
+		//float farrow_resample_float( float sampleIndexOutput, float *bf, unsigned int bfsize, bool &end_reached )
+		//float srconv_val = farrow_resample_float(cur_sample,  ptr_8KHz, cn_bufsz, end_reached );
+
 		cur_sample += srconv_ratio;
 
 		af2.push_ch0( srconv_val * ( au_aud_gain / 100.0 ) );

@@ -395,7 +395,7 @@ tring (i.e. not from a rom address)");
       o->labelsize(8);
       o->callback((Fl_Callback*)cb_bt_addr_hist_prev_next, (void*)(1));
     } // Fl_Button* o
-    { bx_addr_hist_label = new Fl_Box(605, 177, 135, 15, "addr history (?\?\?\?/?\?\?\?):");
+    { bx_addr_hist_label = new Fl_Box(605, 175, 135, 15, "addr history (?\?\?\?/?\?\?\?):");
       bx_addr_hist_label->tooltip("Address auto stepping, enter params and hit Start button");
       bx_addr_hist_label->labelsize(11);
     } // Fl_Box* bx_addr_hist_label

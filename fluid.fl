@@ -296,8 +296,8 @@ Function {main_window()} {open
       tooltip {next address history} xywh {771 174 24 20} labelsize 8
     }
     Fl_Box bx_addr_hist_label {
-      label {addr history (????/????):}
-      tooltip {Address auto stepping, enter params and hit Start button} xywh {605 177 135 15} labelsize 11
+      label {addr history (????/????):} selected
+      tooltip {Address auto stepping, enter params and hit Start button} xywh {605 175 135 15} labelsize 11
     }
     Fl_Button {} {
       label tms5110
@@ -545,8 +545,7 @@ cb_bt_tms5100_actual();} {}
 Function {cb_bt_tms5110(Fl_Widget *w, void*)} {open
 } {
   code {printf("cb_bt_tms5110\\n");
-cb_bt_tms5110_actual();} {selected
-  }
+cb_bt_tms5110_actual();} {}
 }
 
 Function {cb_bt_tms5200(Fl_Widget *w, void*)} {open
