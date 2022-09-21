@@ -65,9 +65,11 @@ The left editbox 'Rom Contents' will show all the letters, numbers phrases, beep
 The larger middle editbox 'LPC hex byte strings' holds handy scratch area for lpc hex byte strings (one hex string per line, use a colon if you want to prefix a text label, e.g: 'isle: 45,AB,36,....', 8 bit only, it can handle c code formatting e.g: 0x45,0xab.. is ok, these likewise can be right clicked to sound. Notice whenever you sound, the edit boxes 'lpc hex' has a hex string place in it. This is the last sounded string (possibly extracted from a rom depending on what editbox you right clicked it), you can play it again by hitting the Play button to the right, there is also the editbox 'lpc decml' which allows decimal strings to be entered, its also filled in when you click the Play for 'lpc hex' and visa versa.  
 
 Speech roms exist for devices other than the Speak & Spell, these roms would still sound, but you will need the rom addresses where each vocal string resides.
-You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by a fixed amounts to help explore and find lpc string locations, if you don't know their addresses (hover over buttons for a brief description). You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'.
+You can enter rom address in the 'addr' edit box and hit enter. There is also some buttons to shift an address by a fixed amounts to help explore and find lpc string locations, if you don't know their addresses (hover over buttons for a brief description). You'll have to select which TMS chip version the roms are coded for using the 3 buttons on right, e.g: 'tms5200'. There is also an address auto stepping function. Be aware that the 'zz_cummulative.au' sound file (described below) will grow large with auto stepping.
 
 The app also generates a: 'zz_audio.au' sound file after each sounding, the filename, samplerate and gain can be changed as req. Also generated is a: 'zz_cummulative.au' sound file, always at 8KHz, it has all the soundings made since starting the app session.
+
+The embedded graph shows various waveforms, cyan trace marks start of each speech frame, yellow is rendered speech wfm (lattice filter o/p, 8KHz), green is glottal pitch/white noise stimulus that feeds into lattice filter.
 
 Note: if you set an incorrect 'pc srate' (i.e: not matching your current pc's audio hardware samplerate) you will get pitch and duration errors (chipmunk/slo-mo).
 
