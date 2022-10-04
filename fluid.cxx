@@ -124,7 +124,7 @@ io");
       te_lpcdata->labelfont(0);
       te_lpcdata->labelsize(12);
       te_lpcdata->labelcolor(FL_FOREGROUND_COLOR);
-      te_lpcdata->align(Fl_Align(FL_ALIGN_TOP));
+      te_lpcdata->align(Fl_Align(FL_ALIGN_TOP_LEFT));
       te_lpcdata->when(FL_WHEN_RELEASE);
     } // mytexteditor* te_lpcdata
     { te_wordlist = new mytexteditor2(5, 196, 240, 180, "Speak Spell\'s Rom Contents (UK/USA)");
@@ -137,7 +137,7 @@ ht click on an address on the left to render audio");
       te_wordlist->labelfont(0);
       te_wordlist->labelsize(12);
       te_wordlist->labelcolor(FL_FOREGROUND_COLOR);
-      te_wordlist->align(Fl_Align(FL_ALIGN_TOP));
+      te_wordlist->align(Fl_Align(FL_ALIGN_TOP_LEFT));
       te_wordlist->when(FL_WHEN_RELEASE);
     } // mytexteditor2* te_wordlist
     { te_chirp = new Fl_Text_Editor(5, 398, 910, 222, "tms5xxx code tables");
@@ -146,6 +146,7 @@ ergy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click o\
 n buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx\
 =0A,0xa,... for hex)");
       te_chirp->labelsize(13);
+      te_chirp->align(Fl_Align(FL_ALIGN_TOP_LEFT));
     } // Fl_Text_Editor* te_chirp
     { fi_romaddr = new Fl_Input(840, 176, 50, 20, "addr:");
       fi_romaddr->tooltip("enter a rom address to utter (hex)");
@@ -154,7 +155,7 @@ n buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx\
       fi_romaddr->callback((Fl_Callback*)cb_fi_romaddr);
       fi_romaddr->when(FL_WHEN_ENTER_KEY_ALWAYS);
     } // Fl_Input* fi_romaddr
-    { Fl_Button* o = new Fl_Button(937, 97, 50, 20, "AEdit");
+    { Fl_Button* o = new Fl_Button(937, 95, 50, 20, "AEdit");
       o->tooltip("open audio editor, edit script/bat to start your favourite audio editor, see:\
   Linux: \'open_audio_editor.sh\',   Win: \'open_audio_editor.bat\'");
       o->labelsize(11);
@@ -236,13 +237,13 @@ udio");
       ck_pitch_6bits->callback((Fl_Callback*)cb_ck_pitch_6bits);
       ck_pitch_6bits->deactivate();
     } // Fl_Check_Button* ck_pitch_6bits
-    { fi_srate_au = new Fl_Value_Input(718, 98, 65, 20, "au srate:");
+    { fi_srate_au = new Fl_Value_Input(718, 96, 65, 20, "au srate:");
       fi_srate_au->tooltip("sample rate to use when saving the .au audio file");
       fi_srate_au->labelsize(12);
       fi_srate_au->textsize(11);
       fi_srate_au->callback((Fl_Callback*)cb_fi_srate_au);
     } // Fl_Value_Input* fi_srate_au
-    { fvs_au_aud_gain = new Fl_Value_Slider(785, 97, 150, 21, "au file gain");
+    { fvs_au_aud_gain = new Fl_Value_Slider(785, 95, 150, 21, "au file gain");
       fvs_au_aud_gain->tooltip("set the audio gain when saving to audio file, 100 is unity");
       fvs_au_aud_gain->type(1);
       fvs_au_aud_gain->box(FL_UP_BOX);
@@ -252,7 +253,7 @@ udio");
       fvs_au_aud_gain->textsize(7);
       fvs_au_aud_gain->callback((Fl_Callback*)cb_fvs_au_aud_gain);
     } // Fl_Value_Slider* fvs_au_aud_gain
-    { fi_au_fname = new Fl_Input(65, 98, 590, 20, "au fname:");
+    { fi_au_fname = new Fl_Input(65, 96, 590, 20, "au fname:");
       fi_au_fname->tooltip("enter .au filename to save audio into");
       fi_au_fname->labelsize(11);
       fi_au_fname->textsize(11);
@@ -348,8 +349,8 @@ nder audio");
     } // Fl_Box* bx_addr_step_led
     { fi_addr_snd_end = new Fl_Input(941, 200, 46, 20, "snd end:");
       fi_addr_snd_end->tooltip("approx end address reached in rom after speech was sounded (in hex), could be\
- out by a few bytes, will show number of bytes parsed if sounding from a hex s\
-tring (i.e. not from a rom address)");
+ out by a few bytes, will show number of bytes parsed (a hex count) if soundin\
+g from a hex string, i.e. not from a rom address");
       fi_addr_snd_end->labelsize(11);
       fi_addr_snd_end->textsize(11);
       fi_addr_snd_end->when(FL_WHEN_ENTER_KEY_ALWAYS);
@@ -404,6 +405,16 @@ tring (i.e. not from a rom address)");
 and lattice iir filter coeffs");
       o->labelsize(11);
       o->callback((Fl_Callback*)cb_bt_tms5110);
+    } // Fl_Button* o
+    { Fl_Button* o = new Fl_Button(377, 180, 45, 15, "Load");
+      o->tooltip("load lpc hex byte strings from text file");
+      o->labelsize(9);
+      o->callback((Fl_Callback*)cb_bt_hex_byte_text_file, (void*)(0));
+    } // Fl_Button* o
+    { Fl_Button* o = new Fl_Button(425, 180, 45, 15, "Save");
+      o->tooltip("save lpc hex byte strings to text file");
+      o->labelsize(9);
+      o->callback((Fl_Callback*)cb_bt_hex_byte_text_file, (void*)(1));
     } // Fl_Button* o
     o->end();
   } // Fl_Double_Window* o

@@ -73,17 +73,17 @@ Function {main_window()} {open
     }
     Fl_Text_Editor te_lpcdata {
       label {LPC hex byte strings}
-      tooltip {lpc hex byte stream, one stream per line, right click on a line to render audio} xywh {245 196 595 180} labelsize 12
+      tooltip {lpc hex byte stream, one stream per line, right click on a line to render audio} xywh {245 196 595 180} labelsize 12 align 5
       class mytexteditor
     }
     Fl_Text_Editor te_wordlist {
       label {Speak Spell's Rom Contents (UK/USA)}
-      tooltip {word lists read from both roms( only valid for speak & spell roms pairs), right click on an address on the left to render audio} xywh {5 196 240 180} labelsize 12
+      tooltip {word lists read from both roms( only valid for speak & spell roms pairs), right click on an address on the left to render audio} xywh {5 196 240 180} labelsize 12 align 5
       class mytexteditor2
     }
     Fl_Text_Editor te_chirp {
       label {tms5xxx code tables}
-      tooltip {enter hex byte (or decimal number) strings, one line per param, chirp wfm, energy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click on buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx=0A,0xa,... for hex)} xywh {5 398 910 222} labelsize 13
+      tooltip {enter hex byte (or decimal number) strings, one line per param, chirp wfm, energy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click on buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx=0A,0xa,... for hex)} xywh {5 398 910 222} labelsize 13 align 5
     }
     Fl_Input fi_romaddr {
       label {addr:}
@@ -93,7 +93,7 @@ Function {main_window()} {open
     Fl_Button {} {
       label AEdit
       callback cb_bt_open_audio_editor
-      tooltip {open audio editor, edit script/bat to start your favourite audio editor, see:  Linux: 'open_audio_editor.sh',   Win: 'open_audio_editor.bat'} xywh {937 97 50 20} labelsize 11
+      tooltip {open audio editor, edit script/bat to start your favourite audio editor, see:  Linux: 'open_audio_editor.sh',   Win: 'open_audio_editor.bat'} xywh {937 95 50 20} labelsize 11
     }
     Fl_Check_Button ck_interp {
       label interp
@@ -161,16 +161,16 @@ Function {main_window()} {open
     Fl_Value_Input fi_srate_au {
       label {au srate:}
       callback cb_fi_srate_au
-      tooltip {sample rate to use when saving the .au audio file} xywh {718 98 65 20} labelsize 12 textsize 11
+      tooltip {sample rate to use when saving the .au audio file} xywh {718 96 65 20} labelsize 12 textsize 11
     }
     Fl_Value_Slider fvs_au_aud_gain {
       label {au file gain}
       callback cb_fvs_au_aud_gain
-      tooltip {set the audio gain when saving to audio file, 100 is unity} xywh {785 97 150 21} type Horizontal box UP_BOX labelsize 9 maximum 300 value 100 textsize 7
+      tooltip {set the audio gain when saving to audio file, 100 is unity} xywh {785 95 150 21} type Horizontal box UP_BOX labelsize 9 maximum 300 value 100 textsize 7
     }
     Fl_Input fi_au_fname {
       label {au fname:}
-      tooltip {enter .au filename to save audio into} xywh {65 98 590 20} labelsize 11 when 1 textsize 11
+      tooltip {enter .au filename to save audio into} xywh {65 96 590 20} labelsize 11 when 1 textsize 11
     }
     Fl_Button {} {
       label tms5100
@@ -251,8 +251,8 @@ Function {main_window()} {open
       xywh {970 345 12 12} box BORDER_BOX
     }
     Fl_Input fi_addr_snd_end {
-      label {snd end:}
-      tooltip {approx end address reached in rom after speech was sounded (in hex), could be out by a few bytes, will show number of bytes parsed if sounding from a hex string (i.e. not from a rom address)} xywh {941 200 46 20} labelsize 11 when 10 textsize 11
+      label {snd end:} selected
+      tooltip {approx end address reached in rom after speech was sounded (in hex), could be out by a few bytes, will show number of bytes parsed (a hex count) if sounding from a hex string, i.e. not from a rom address} xywh {941 200 46 20} labelsize 11 when 10 textsize 11
     }
     Fl_Button {} {
       label {-}
@@ -296,13 +296,25 @@ Function {main_window()} {open
       tooltip {next address history} xywh {771 174 24 20} labelsize 8
     }
     Fl_Box bx_addr_hist_label {
-      label {addr history (????/????):} selected
+      label {addr history (????/????):}
       tooltip {Address auto stepping, enter params and hit Start button} xywh {605 175 135 15} labelsize 11
     }
     Fl_Button {} {
       label tms5110
       callback cb_bt_tms5110
       tooltip {select TMS5xxx chip version and its specific codes for: chirp, engery, pitch and lattice iir filter coeffs} xywh {918 533 65 20} labelsize 11
+    }
+    Fl_Button {} {
+      label Load
+      user_data 0
+      callback cb_bt_hex_byte_text_file
+      tooltip {load lpc hex byte strings from text file} xywh {377 180 45 15} labelsize 9
+    }
+    Fl_Button {} {
+      label Save
+      user_data 1
+      callback cb_bt_hex_byte_text_file
+      tooltip {save lpc hex byte strings to text file} xywh {425 180 45 15} labelsize 9
     }
   }
   code {tb_lpcdata = new Fl_Text_Buffer;

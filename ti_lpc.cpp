@@ -107,6 +107,7 @@ string slast_filename;
 string slast_binary_file;
 string slast_rom0_filename;
 string slast_rom1_filename;
+string slast_lpc_hex_byte_text_fname;
 
 extern unsigned char phrom_rom[16][16384];
 int stop_lpc_addr = 0;
@@ -1407,6 +1408,8 @@ fi_romfname->value( slast_rom0_filename.c_str() );
 p.GetPrivateProfileStr( "Settings", "last_rom1_filename", "tmc0352n2l.vsm", &slast_rom1_filename );
 fi_romfname1->value( slast_rom1_filename.c_str() );
 
+p.GetPrivateProfileStr( "Settings", "slast_lpc_hex_byte_text_fname", "zz_lpc_hex_byte_string.txt", &slast_lpc_hex_byte_text_fname );
+
 s1 = fi_au_fname->value();
 p.GetPrivateProfileStr( "Settings", "au_fname", "zz_audio.au", &s1 );
 fi_au_fname->value( s1.c_str() );
@@ -1482,6 +1485,7 @@ fi_addr_dec_inc_val->value( s1.c_str() );
 
 
 
+
 if(pref_wnd!=0) pref_wnd->Load(p);
 if(font_pref_wnd!=0) font_pref_wnd->Load(p);
 
@@ -1527,6 +1531,7 @@ p.WritePrivateProfileStr("Settings","last_rom0_filename", slast_rom0_filename );
 slast_rom1_filename = fi_romfname1->value();
 p.WritePrivateProfileStr("Settings","last_rom1_filename", slast_rom1_filename );
 
+p.WritePrivateProfileStr("Settings","slast_lpc_hex_byte_text_fname", slast_lpc_hex_byte_text_fname );
 
 
 s1 = fi_au_fname->value();
@@ -2675,6 +2680,57 @@ printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr %04x\n",  vadd
 
 
 
+
+
+
+
+
+
+void cb_bt_hex_byte_text_file( Fl_Widget *w, void *v )
+{
+string s1, s2;
+mystr m1;
+
+int which = (intptr_t)v;
+
+printf( "cb_bt_hex_byte_text_file() - %d\n",  which );
+
+
+if( which == 0 )
+	{
+	m1 = tb_lpcdata->text();
+	if( my_file_chooser( s2, "Load text lpc hex string file ?", "*", slast_lpc_hex_byte_text_fname.c_str(), 0, font_num, font_size ) )
+		{
+		if( !m1.readfile( s2, 100000 ) )
+			{
+			strpf( s1, "Failed to load lpc hex string file from text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
+			fl_alert( s1.c_str(), 0 );
+			}
+		else{
+			slast_lpc_hex_byte_text_fname = s2;
+			tb_lpcdata->text( m1.szptr() );
+			}
+		}
+	}
+
+
+if( which == 1 )
+	{
+	m1 = tb_lpcdata->text();
+	if( my_file_chooser( s2, "Save text lpc hex string file ?", "*", slast_lpc_hex_byte_text_fname.c_str(), Fl_File_Chooser::CREATE, font_num, font_size ) )
+		{
+		if( !m1.writefile( s2 ) )
+			{
+			strpf( s1, "Failed to save lpc hex string file from text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
+			fl_alert( s1.c_str(), 0 );
+			}
+		else{
+			slast_lpc_hex_byte_text_fname = s2;
+			}
+
+		}
+	}
+}
 
 
 
