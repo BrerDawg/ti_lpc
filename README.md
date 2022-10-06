@@ -1,4 +1,4 @@
-sep-2022 v1.05
+Oct 2022 v1.05
 
 ## ti_lpc
 Texas Instrument Speak & Spell synthesizer, renders rom sounds/vocal hex strings to PC sound hardware/sound files. 
