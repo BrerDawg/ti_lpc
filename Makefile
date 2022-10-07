@@ -31,7 +31,7 @@ LIBS= -L/usr/local/lib -static -mwindows -lfltk -lole32 -luuid -lcomctl32 -lm -l
 endif
 
 #define object files for each executable, see dependancy list at bottom
-obj1= ti_lpc.o GCProfile.o pref.o GCLed.o GCCol.o audio_formats.o tms5220.o gclog.o gcthrd.o pcaudio.o synth_eng.o fluid.o wfm.o mgraph.o filter_code.o gc_srateconv.o gc_rtaudio.o #pulseaud.o
+obj1= ti_lpc.o GCProfile.o pref.o GCLed.o GCCol.o audio_formats.o gclog.o gcthrd.o pcaudio.o synth_eng.o fluid.o wfm.o mgraph.o filter_code.o gc_srateconv.o gc_rtaudio.o #pulseaud.o
 #obj2= backprop.o layer.o
 
 
@@ -60,7 +60,7 @@ ti_lpc: $(obj1)
 
 
 #dependancy list per each .o file
-ti_lpc.o: ti_lpc.h globals.h GCProfile.h pref.h GCCol.h GCLed.h tms5220.h gclog.h gcthrd.h pcaudio.h synth_eng.h fluid.h wfm.h mgraph.h filter_code.h gc_srateconv.h gc_rtaudio.h #pulseaud.h
+ti_lpc.o: ti_lpc.h globals.h GCProfile.h pref.h GCCol.h GCLed.h gclog.h gcthrd.h pcaudio.h synth_eng.h fluid.h wfm.h mgraph.h filter_code.h gc_srateconv.h gc_rtaudio.h #pulseaud.h
 GCProfile.o: GCProfile.h
 pref.o: pref.h GCCol.h GCLed.h
 GCCol.o:  GCCol.h
