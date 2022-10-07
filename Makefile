@@ -67,7 +67,6 @@ GCCol.o:  GCCol.h
 GCLed.o: GCLed.h
 audio_formats.o: audio_formats.h
 #filter.o: filter.h globals.h
-tms5520.o: tms5220.h GCProfile.h
 gclog.o: gclog.h GCProfile.h
 gcthrd.o: gcthrd.h GCProfile.h gclog.h
 pcaudio.o: globals.h pcaudio.h

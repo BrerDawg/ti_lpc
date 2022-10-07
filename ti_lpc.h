@@ -73,7 +73,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "pcaudio.h"
 #include "synth_eng.h"
 #include "filter_code.h"
-#include "tms5220.h"
 #include "fluid.h"
 #include "mgraph.h"
 #include "wfm.h"
