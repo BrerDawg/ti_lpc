@@ -117,6 +117,7 @@ press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
 The second graph in its own window shows the samplerate converted speech wfm, this is at the samplerate you have entered for your current PC audio hardware.
+press 'h' for help on controlling this graph's trace.
 
 
 
