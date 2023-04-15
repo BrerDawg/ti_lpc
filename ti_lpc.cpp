@@ -108,6 +108,7 @@ string slast_binary_file;
 string slast_rom0_filename;
 string slast_rom1_filename;
 string slast_lpc_hex_byte_text_fname;
+string slast_tms_code_tables_text_fname;
 
 extern unsigned char phrom_rom[16][16384];
 int stop_lpc_addr = 0;
@@ -1409,6 +1410,8 @@ p.GetPrivateProfileStr( "Settings", "last_rom1_filename", "tmc0352n2l.vsm", &sla
 fi_romfname1->value( slast_rom1_filename.c_str() );
 
 p.GetPrivateProfileStr( "Settings", "slast_lpc_hex_byte_text_fname", "zz_lpc_hex_byte_string.txt", &slast_lpc_hex_byte_text_fname );
+p.GetPrivateProfileStr( "Settings", "slast_tms_code_tables_text_fname", "zz_tms_code_table.txt", &slast_tms_code_tables_text_fname );
+
 
 s1 = fi_au_fname->value();
 p.GetPrivateProfileStr( "Settings", "au_fname", "zz_audio.au", &s1 );
@@ -1532,6 +1535,7 @@ slast_rom1_filename = fi_romfname1->value();
 p.WritePrivateProfileStr("Settings","last_rom1_filename", slast_rom1_filename );
 
 p.WritePrivateProfileStr("Settings","slast_lpc_hex_byte_text_fname", slast_lpc_hex_byte_text_fname );
+p.WritePrivateProfileStr("Settings","slast_tms_code_tables_text_fname", slast_tms_code_tables_text_fname );
 
 
 s1 = fi_au_fname->value();
@@ -2081,7 +2085,7 @@ Fl_Input *teText = new Fl_Input(10,10,wnd->w()-20,wnd->h()-20,"");
 teText->type(FL_MULTILINE_OUTPUT);
 teText->textsize(12);
 
-strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.05", cns_build_date );
+strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.06", cns_build_date );
 st += s1;
 
 
@@ -2089,7 +2093,6 @@ strpf( s1, "\nTexas Instruments (Speak & Spell) Linear Predictive Decoder Utilit
 st += s1;
 
 
-//strpf(s,"%s, v1.05, Mar 2011\n\nBasic app skeleton foundation to build onto...",cnsAppWndName);
 teText->value(st.c_str());
 wnd->end();
 
@@ -2100,6 +2103,8 @@ wnd->set_modal();
 wnd->show();
 
 }
+
+
 
 
 
@@ -2686,6 +2691,62 @@ printf( "cb_bt_addr_hist_prev_next() - vaddr_hist.size() %d, addr %04x\n",  vadd
 
 
 
+void cb_bt_tms_code_tables_text_file( Fl_Widget *w, void *v )
+{
+string s1, s2;
+mystr m1;
+
+int which = (intptr_t)v;
+printf( "cb_bt_tms_code_tables_text_file() - %d\n",  which );
+
+
+
+
+if( which == 0 )
+	{
+	m1 = tb_lpcdata->text();
+	if( my_file_chooser( s2, "Load tms code table file ?", "*", slast_tms_code_tables_text_fname.c_str(), 0, font_num, font_size ) )
+		{
+		if( !m1.readfile( s2, 100000 ) )
+			{
+			strpf( s1, "Failed to load tms code tables from text file: '%s'\n", slast_tms_code_tables_text_fname.c_str() );
+			fl_alert( s1.c_str(), 0 );
+			}
+		else{
+			slast_tms_code_tables_text_fname = s2;
+			tb_chirp->text( m1.szptr() );
+			}
+		}
+	}
+
+
+
+
+
+if( which == 1 )
+	{
+	m1 = tb_chirp->text();
+	if( my_file_chooser( s2, "Save tms code table file ?", "*", slast_tms_code_tables_text_fname.c_str(), Fl_File_Chooser::CREATE, font_num, font_size ) )
+		{
+		if( !m1.writefile( s2 ) )
+			{
+			strpf( s1, "Failed to tms code table to text file: '%s'\n", slast_tms_code_tables_text_fname.c_str() );
+			fl_alert( s1.c_str(), 0 );
+			}
+		else{
+			slast_tms_code_tables_text_fname = s2;
+			}
+
+		}
+	}
+}
+
+
+
+
+
+
+
 
 
 
@@ -2706,7 +2767,7 @@ if( which == 0 )
 		{
 		if( !m1.readfile( s2, 100000 ) )
 			{
-			strpf( s1, "Failed to load lpc hex string file from text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
+			strpf( s1, "Failed to load lpc hex strings from text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
 			fl_alert( s1.c_str(), 0 );
 			}
 		else{
@@ -2724,7 +2785,7 @@ if( which == 1 )
 		{
 		if( !m1.writefile( s2 ) )
 			{
-			strpf( s1, "Failed to save lpc hex string file from text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
+			strpf( s1, "Failed to save lpc hex strings to text file: '%s'\n", slast_lpc_hex_byte_text_fname.c_str() );
 			fl_alert( s1.c_str(), 0 );
 			}
 		else{
@@ -5037,6 +5098,8 @@ bool last_silence = 0;
 
 synthRand = 1;				//force random noise seed to commence from  the same value - for debug purposes
 
+bool plot_first_time_flag = 1;			//initial plot call flag
+
 //extern vector<float> gph0_vx;
 vector<float> fgph_vx;
 vector<float> fgph_vy0;
@@ -5738,18 +5801,26 @@ af2.save_malloc( "", s1, 32767, saf );
 
 update_gphs();
 
-fgph.scale_y( 1.0, 1.0, 1.0, 0.1 );
-fgph.shift_y( 0.0, -0.1, -0.10, -0.2 );
-fgph.font_size( 9 );
-fgph.set_sig_dig( 2 );
-fgph.sample_rect_hints_distancex = 0;
-fgph.sample_rect_hints_distancey = 0;
+if( plot_first_time_flag ) 
+	{
+//	fgph.scale_y( 1.0, 1.0, 1.0, 0.1 );
+//	fgph.shift_y( 0.0, -0.1, -0.10, -0.2 );
+	fgph.font_size( 9 );
+	fgph.set_sig_dig( 2 );
+	fgph.sample_rect_hints_distancex = 0;
+	fgph.sample_rect_hints_distancey = 0;
+//	fgph.yunits_perpxl[0] = 0.02;
+//	fgph.max_defl_y[ 0 ] = 2.5;
 
+	fgph.set_trc_label1( 0, "pc srate" );
+	plot_first_time_flag = 0;
+	}
 //fgph.plotxy( gph0_vx, gph0_vamp0, gph0_vamp1, gph0_vamp2, gph0_vamp4,"brwn", "drkg", "drkcy", "drkr", "ofw", "drkb", "drkgry", "trace 1", "trace 2", "trace 3", "trace 4"  );
 //fgph.plotxy( gph0_vx, gph0_vamp0, gph0_vamp1 );
 //fgph.plotxy( fgph_vx, fgph_vy0, fgph_vy1 );
 
-fgph.plotxy( fgph_vx, fgph_vy0, "drky", "ofw", "drkb", "blk", "pc srate" );	//3 traces cols, bkgd col, axis col, text col, and trace colour coded labels, see defined colours: 'user_col'
+//fgph.plotxy( fgph_vx, fgph_vy0, "drky", "ofw", "drkb", "blk", "pc srate" );	//3 traces cols, bkgd col, axis col, text col, and trace colour coded labels, see defined colours: 'user_col'
+fgph.plotxy_vfloat_1( fgph_vx, fgph_vy0 );	//3 traces cols, bkgd col, axis col, text col, and trace colour coded labels, see defined colours: 'user_col'
 
 //fgph.plotxy( gph0_vx, gph0_vamp2 );
 //fgph.plot( 0,gph0_vamp2 );

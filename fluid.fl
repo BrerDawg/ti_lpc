@@ -36,7 +36,7 @@ Function {main_window()} {open
 } {
   Fl_Window {} {
     label ti_lpc_app open
-    xywh {299 78 990 970} type Double labelsize 11 resizable visible
+    xywh {626 79 990 970} type Double labelsize 11 resizable visible
   } {
     Fl_Menu_Bar meMain {open
       xywh {0 0 990 20}
@@ -82,7 +82,7 @@ Function {main_window()} {open
       class mytexteditor2
     }
     Fl_Text_Editor te_chirp {
-      label {tms5xxx code tables}
+      label {tms5xxx code table}
       tooltip {enter hex byte (or decimal number) strings, one line per param, chirp wfm, energy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click on buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx=0A,0xa,... for hex)} xywh {5 398 910 222} labelsize 13 align 5
     }
     Fl_Input fi_romaddr {
@@ -110,7 +110,7 @@ Function {main_window()} {open
       callback cb_fi_srate
       tooltip {set this to match the current samplerate of pc's audio hardware, if incorrectly set you will get pitch and duration errors (chipmunk/slomo)} xywh {445 72 65 20} labelsize 11 textsize 11
     }
-    Fl_Group fluid_gph1 {open
+    Fl_Group fluid_gph1 {open selected
       xywh {5 620 970 320}
     } {}
     Fl_Button {} {
@@ -251,7 +251,7 @@ Function {main_window()} {open
       xywh {970 345 12 12} box BORDER_BOX
     }
     Fl_Input fi_addr_snd_end {
-      label {snd end:} selected
+      label {snd end:}
       tooltip {approx end address reached in rom after speech was sounded (in hex), could be out by a few bytes, will show number of bytes parsed (a hex count) if sounding from a hex string, i.e. not from a rom address} xywh {941 200 46 20} labelsize 11 when 10 textsize 11
     }
     Fl_Button {} {
@@ -315,6 +315,18 @@ Function {main_window()} {open
       user_data 1
       callback cb_bt_hex_byte_text_file
       tooltip {save lpc hex byte strings to text file} xywh {425 180 45 15} labelsize 9
+    }
+    Fl_Button {} {
+      label Load
+      user_data 0
+      callback cb_bt_tms_code_tables_text_file
+      tooltip {load tms code table from text file} xywh {147 382 45 15} labelsize 9
+    }
+    Fl_Button {} {
+      label Save
+      user_data 1
+      callback cb_bt_tms_code_tables_text_file
+      tooltip {save tms code table to text file} xywh {195 382 45 15} labelsize 9
     }
   }
   code {tb_lpcdata = new Fl_Text_Buffer;

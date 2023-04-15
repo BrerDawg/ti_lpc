@@ -1,4 +1,4 @@
-Oct 2022 v1.05
+Apr 2023 v1.06
 
 ## ti_lpc
 Texas Instrument Speak & Spell synthesizer, renders rom sounds/vocal hex strings to PC sound hardware/sound files. 
@@ -111,7 +111,9 @@ press 'x' and spin mousewheel to change x position (or just drag), for all trace
 press 'y' and spin mousewheel to change y position, on a per trace basis
 
 
+
 The second graph in its own window shows the samplerate converted speech wfm, this is at the samplerate you have entered for your current PC audio hardware.
+press 'h' for help on controlling this graph's trace
 
 
 

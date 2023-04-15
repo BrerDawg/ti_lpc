@@ -140,7 +140,7 @@ ht click on an address on the left to render audio");
       te_wordlist->align(Fl_Align(FL_ALIGN_TOP_LEFT));
       te_wordlist->when(FL_WHEN_RELEASE);
     } // mytexteditor2* te_wordlist
-    { te_chirp = new Fl_Text_Editor(5, 398, 910, 222, "tms5xxx code tables");
+    { te_chirp = new Fl_Text_Editor(5, 398, 910, 222, "tms5xxx code table");
       te_chirp->tooltip("enter hex byte (or decimal number) strings, one line per param, chirp wfm, en\
 ergy, pitch count, pitch, 10 lattice iir filter(k0-->k9) lookup codes, click o\
 n buttons at right to see some examples (chirp=10,-5,... for decimal, chirp_hx\
@@ -415,6 +415,16 @@ and lattice iir filter coeffs");
       o->tooltip("save lpc hex byte strings to text file");
       o->labelsize(9);
       o->callback((Fl_Callback*)cb_bt_hex_byte_text_file, (void*)(1));
+    } // Fl_Button* o
+    { Fl_Button* o = new Fl_Button(147, 382, 45, 15, "Load");
+      o->tooltip("load tms code table from text file");
+      o->labelsize(9);
+      o->callback((Fl_Callback*)cb_bt_tms_code_tables_text_file, (void*)(0));
+    } // Fl_Button* o
+    { Fl_Button* o = new Fl_Button(195, 382, 45, 15, "Save");
+      o->tooltip("save tms code table to text file");
+      o->labelsize(9);
+      o->callback((Fl_Callback*)cb_bt_tms_code_tables_text_file, (void*)(1));
     } // Fl_Button* o
     o->end();
   } // Fl_Double_Window* o

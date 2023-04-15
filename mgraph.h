@@ -1,11 +1,11 @@
 /*
-Copyright (C) 2021 BrerDawg
+Copyright (C) 2022 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
 as published by the Free Software Foundation; either version 2
 of the License, or (at your option) any later version.
-
+hint
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //v1.08 mgraph	 	21-dec-2017
 //v1.05 surface3d 	06-jan-2018			//see also below  'to avoid windows error dlg: fl_line_style(): Could not create GDI pen object'
 //v1.17 mgraph and fast_graph
+//v1.18 mgraph
+//v1.19 fast_graph
 
 #ifndef mgraph_h
 #define mgraph_h
@@ -876,6 +878,8 @@ public:
 bool left_button;
 bool right_button;
 bool middle_button;
+int b_invert_wheel;
+int mousewheel;
 
 vector<trace_tag>trce;
 int rect_size;
@@ -1079,6 +1083,7 @@ bool get_plot_values( int trc, double &x1, double &y1, double &x2, double &y2, d
 bool get_trace_to_plot_factors( int trc, double &trace_scalex, double &d_midx, double &scalex, double &trace_midx, int &trace_offx, double &positionx, int &plot_offsx,   double &trace_scaley, double &d_midy, double &scaley, double &trace_midy, int &trace_offy, double &positiony, int &plot_offsy );
 void resize( int xx, int yy, int ww, int hh );
 void get_trace_midxy( int idx, double &midx, double &midy );
+bool get_plot_offsy( int trc, int &val );
 
 
 private:
@@ -1116,7 +1121,8 @@ void clip_draw_point( int xx, int yy );
 //-------------------------------------------------------------------------------
 //SEE EXAMPLE CODE: 'test_fast_mgraph()'
 
-#define fast_mgraph_cnt_max 32
+#define cn_fast_mgraph_cnt_max 32
+#define cn_fast_mgraph_trc_cnt_max 4
 
 
 //simple to use graphing class
@@ -1135,32 +1141,70 @@ int wnd_cur_hei;
 
 
 
-public:											//public var
-mgraph *gph[fast_mgraph_cnt_max];
-mg_col_tag col_obj_axis;
-mg_col_tag col_obj_text;
+public:
+int id0;																//just for user use
+int id1;
+mgraph *gph[cn_fast_mgraph_cnt_max];
+mg_col_tag col_obj_axis[cn_fast_mgraph_cnt_max];
+
+mg_col_tag col_obj_text[cn_fast_mgraph_cnt_max];
+
+mg_col_tag col_obj_text_multi_1[cn_fast_mgraph_cnt_max];
+mg_col_tag col_obj_text_multi_2[cn_fast_mgraph_cnt_max];
+mg_col_tag col_obj_text_multi_3[cn_fast_mgraph_cnt_max];
+mg_col_tag col_obj_text_multi_4[cn_fast_mgraph_cnt_max];
+
+mg_col_tag col_hover_text_multi_1[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_hover_text_multi_2[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_hover_text_multi_3[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_hover_text_multi_4[ cn_fast_mgraph_cnt_max ];
+	
+mg_col_tag col_axis_multi_1[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_axis_multi_2[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_axis_multi_3[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_axis_multi_4[ cn_fast_mgraph_cnt_max ];
+
+
+mg_col_tag col_trc_multi_1[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_trc_multi_2[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_trc_multi_3[ cn_fast_mgraph_cnt_max ];
+mg_col_tag col_trc_multi_4[ cn_fast_mgraph_cnt_max ];
+
+string trc_label_multi_1[ cn_fast_mgraph_cnt_max ];
+string trc_label_multi_2[ cn_fast_mgraph_cnt_max ];
+string trc_label_multi_3[ cn_fast_mgraph_cnt_max ];
+string trc_label_multi_4[ cn_fast_mgraph_cnt_max ];
+
 int gap;
 int gph_cnt;
 int x_axis_offs;
 int left_hov_idx;
 float scale_change;
-bool keya[ fast_mgraph_cnt_max ];
-bool keyy[ fast_mgraph_cnt_max ];
-bool keyshift[ fast_mgraph_cnt_max ];
-int sel_idx1[ fast_mgraph_cnt_max ];
-int sel_idx2[ fast_mgraph_cnt_max ];
-vector<double> vtrc_valx[ fast_mgraph_cnt_max ];
-vector<double> vtrc_valy1[ fast_mgraph_cnt_max ];			//these are local copies of x,y vals
-vector<double> vtrc_valy2[ fast_mgraph_cnt_max ];
-vector<double> vtrc_valy3[ fast_mgraph_cnt_max ];
-string trc_label[ fast_mgraph_cnt_max ];					//if user wants to label a trace using the trace's colour key,
-mg_col_tag color_trc[ fast_mgraph_cnt_max ];				//also used for trc_label
+bool keya[ cn_fast_mgraph_cnt_max ];
+bool keyy[ cn_fast_mgraph_cnt_max ];
+bool keym[ cn_fast_mgraph_cnt_max ];
+bool keyshift[ cn_fast_mgraph_cnt_max ];
+int sel_idx1[ cn_fast_mgraph_cnt_max ];
+int sel_idx2[ cn_fast_mgraph_cnt_max ];
+vector<double> vtrc_valx[ cn_fast_mgraph_cnt_max ];
+vector<double> vtrc_valy1[ cn_fast_mgraph_cnt_max ];		//cache vectors to allow internal redrawing from callbacks, e.g when mousewheel amplitude adjs are performed
+vector<double> vtrc_valy2[ cn_fast_mgraph_cnt_max ];
+vector<double> vtrc_valy3[ cn_fast_mgraph_cnt_max ];
+vector<double> vtrc_valy4[ cn_fast_mgraph_cnt_max ];
+string trc_label[ cn_fast_mgraph_cnt_max ];					//if user wants to label a trace using the trace's colour key,
+mg_col_tag color_trc[ cn_fast_mgraph_cnt_max ];				//also used for trc_label
+mg_col_tag col_hover_text[cn_fast_mgraph_cnt_max];				//used for hover text colour
 
-double scale_trc_y[ fast_mgraph_cnt_max ];
-double shift_trc_y[ fast_mgraph_cnt_max ];
+double scale_x;
+double scale_trc_y[ cn_fast_mgraph_cnt_max ][cn_fast_mgraph_trc_cnt_max];
+double max_defl_y[ cn_fast_mgraph_cnt_max ];					//value that should be shown as maximum y deflection, user adj via 'm' key and mousewheel
+double shift_trc_y[ cn_fast_mgraph_cnt_max ][cn_fast_mgraph_trc_cnt_max];
+float scale_change_h;										//global/static var
 
-double xunits_perpxl[ fast_mgraph_cnt_max ];
-double yunits_perpxl[ fast_mgraph_cnt_max ];
+double pos_x;
+
+double xunits_perpxl[ cn_fast_mgraph_cnt_max ];				//mgraph
+double yunits_perpxl[ cn_fast_mgraph_cnt_max ];				//-1 means auto scaling,  set this to override auto scaling of the first trace (other traces are referenced to first trace)
 
 int drag_start_mousex;
 double drag_start_posx;
@@ -1179,8 +1223,16 @@ int sample_rect_hints_distancey;
 
 bool center_sel_sample_on_zoom_change;
 
-vector<st_mgraph_draw_obj_tag> vextra_drwobj[fast_mgraph_cnt_max];      //holds additional obj for drawing
+vector<st_mgraph_draw_obj_tag> vextra_drwobj[cn_fast_mgraph_cnt_max];     //holds additional obj for drawing
 
+int xtick_marks[cn_fast_mgraph_cnt_max];								//for axis, number of ticks to show
+int ytick_marks[cn_fast_mgraph_cnt_max];
+
+bool b_x_axis_values_derived[cn_fast_mgraph_cnt_max];					//set this to derive 'x' axis display values using a 'leftmost' value plus a 'inc' value (only works with plots that have no 'x' vector supplied)
+double x_axis_values_derived_left_value[cn_fast_mgraph_cnt_max];		//first 'x' plot point value (left most plot point)
+double x_axis_values_derived_inc_value[cn_fast_mgraph_cnt_max];			//the inc value to be added to 'x_axis_values_derived_left_value' for each successive plot of 'y' vector
+
+bool b_x_axis_vector_supplied[cn_fast_mgraph_cnt_max];
 
 void (*left_click_cb_p )( void *mgrap, void *args );
 void *left_click_cb_args;
@@ -1191,9 +1243,14 @@ void *middle_click_cb_args;
 void (*right_click_cb_p )( void *mgrap, void *args );
 void *right_click_cb_args;
 
-int last_sel0_idx[ fast_mgraph_cnt_max ], last_sel1_idx[ fast_mgraph_cnt_max ];		//actually only ever use index: [0] for delta calcs
-double last_sel0_x[ fast_mgraph_cnt_max ], last_sel1_x[ fast_mgraph_cnt_max ];
-double last_sel0_y[ fast_mgraph_cnt_max ], last_sel1_y[ fast_mgraph_cnt_max ];
+int last_sel_trc;
+int last_sel0_idx[ cn_fast_mgraph_cnt_max ], last_sel1_idx[ cn_fast_mgraph_cnt_max ];		//actually only ever use index: [0] for delta calcs
+double last_sel0_x[ cn_fast_mgraph_cnt_max ], last_sel1_x[ cn_fast_mgraph_cnt_max ];
+double last_sel0_y[ cn_fast_mgraph_cnt_max ], last_sel1_y[ cn_fast_mgraph_cnt_max ];
+
+
+private:
+
 
 public:
 fast_mgraph( int gph_cnt = 1, int xx = 100, int yy = 100, int wid = 900, int hei = 500, const char *label = "FastMGraph" );
@@ -1201,15 +1258,100 @@ fast_mgraph( int gph_cnt = 1, int xx = 100, int yy = 100, int wid = 900, int hei
 void set_selected_sample( int gph_idx, int trc, int sel_sample_idx );
 void set_selected_sample( int trc, int sel_sample_idx );
 
+void set_col_bkgd( int gph_idx, const char *col_bkgd );
+void set_col_bkgd_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+
+void set_col_axis1( int gph_idx, const char *col_axis );
+void set_col_axis2( int gph_idx, const char *col_axis );
+void set_col_axis3( int gph_idx, const char *col_axis );
+void set_col_axis4( int gph_idx, const char *col_axis );
+
+void set_col_axis1_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_axis2_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_axis3_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_axis4_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+
+
+void set_col_hover_text1( int gph_idx, const char *col_axis );
+void set_col_hover_text2( int gph_idx, const char *col_axis );
+void set_col_hover_text3( int gph_idx, const char *col_axis );
+void set_col_hover_text4( int gph_idx, const char *col_axis );
+
+void set_col_hover_text1_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_hover_text2_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_hover_text3_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_hover_text4_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+
+
+
+void set_obj_col_text1( int gph_idx, const char *col_text );
+void set_obj_col_text2( int gph_idx, const char *col_text );
+void set_obj_col_text3( int gph_idx, const char *col_text );
+void set_obj_col_text4( int gph_idx, const char *col_text );
+
+void set_obj_col_text1_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_obj_col_text2_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_obj_col_text3_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_obj_col_text4_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+
+void set_col_trc1( int gph_idx, const char *col_trc1 );
+void set_col_trc2( int gph_idx, const char *col_trc2 );
+void set_col_trc3( int gph_idx, const char *col_trc3 );
+void set_col_trc4( int gph_idx, const char *col_trc4 );
+void set_col_trc1_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_trc2_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_trc3_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+void set_col_trc4_rgb( int gph_idx, uint8_t rr, uint8_t gg, uint8_t bb );
+
+void set_trc_label1( int grph_idx, string ss );
+void set_trc_label2( int grph_idx, string ss );
+void set_trc_label3( int grph_idx, string ss );
+void set_trc_label4( int grph_idx, string ss );
+
 
 void font_type( int ii );
 void font_size( int ii );
-void scale_y( double trc1, double trc2=1.0, double trc3=1.0, double trc4=1.0 );
-void shift_y( double trc1, double trc2=0.0, double trc3=0.0, double trc4=0.0 );
+void scale_y( int gph_idx, double trc1, double trc2=1.0, double trc3=1.0, double trc4=1.0 );
+void shift_y( int gph_idx, double trc1, double trc2=0.0, double trc3=0.0, double trc4=0.0 );
 void set_sig_dig( int ii );
 void set_xunits_perpxl( double trc1=-1, double trc2=-1, double trc3=-1, double trc4=-1 );
 void set_yunits_perpxl( double trc1=-1, double trc2=-1, double trc3=-1, double trc4=-1 );
+void set_ymax_deflection_value( int gph_idx, double y_max_delf );
 
+
+//multi graph, one trace per graph
+void plot_vfloat( int gph_idx, vector<float> &vy1 );
+void plotxy_vfloat( int gph_idx, vector<float> &vx, vector<float> &vy1 );
+
+void plot_vdouble( int gph_idx, vector<double> &vy1 );
+void plotxy_vdouble( int gph_idx, vector<double> &vx, vector<double> &vy1 );
+
+//one graph, multi trace
+void plot_vfloat_1( vector<float> &vy1 );
+void plot_vfloat_2( vector<float> &vy1, vector<float> &vy2 );
+void plot_vfloat_3( vector<float> &vy1, vector<float> &vy2, vector<float> &vy3 );
+void plot_vfloat_4( vector<float> &vy1, vector<float> &vy2, vector<float> &vy3, vector<float> &vy4 );
+
+void plot_vdouble_1( vector<double> &vy1 );
+void plot_vdouble_2( vector<double> &vy1, vector<double> &vy2 );
+void plot_vdouble_3( vector<double> &vy1, vector<double> &vy2, vector<double> &vy3 );
+void plot_vdouble_4( vector<double> &vy1, vector<double> &vy2, vector<double> &vy3, vector<double> &vy4 );
+
+void plotxy_vfloat_1( vector<float> &vx, vector<float> &vy1 );
+void plotxy_vfloat_2( vector<float> &vx, vector<float> &vy1, vector<float> &vy2 );
+void plotxy_vfloat_3( vector<float> &vx, vector<float> &vy1, vector<float> &vy2, vector<float> &vy3 );
+void plotxy_vfloat_4( vector<float> &vx, vector<float> &vy1, vector<float> &vy2, vector<float> &vy3, vector<float> &vy4 );
+
+void plotxy_vdouble_1( vector<double> &vx, vector<double> &vy1 );
+void plotxy_vdouble_2( vector<double> &vx, vector<double> &vy1, vector<double> &vy2 );
+void plotxy_vdouble_3( vector<double> &vx, vector<double> &vy1, vector<double> &vy2, vector<double> &vy3 );
+void plotxy_vdouble_4( vector<double> &vx, vector<double> &vy1, vector<double> &vy2, vector<double> &vy3, vector<double> &vy4 );
+
+void plot_grph_internal( int grph_idx );
+
+
+
+/*
 //one graph, 2 traces
 void plot( vector<double> vf1, vector<double> vf2, const char *col_trc1="brwn", const char *col_trc2="drkg", const char *col_bkgd="ofw", const char *col_axis="drkb", const char *col_text="drkgry", const char *trc_label1="", const char *trc_label2="" );
 void plot( vector<float> vf1, vector<float> vf2, const char *col_trc1="brwn", const char *col_trc2="drkg", const char *col_bkgd="ofw", const char *col_axis="drkb", const char *col_text="drkgry", const char *trc_label1="", const char *trc_label2="" );
@@ -1285,6 +1427,8 @@ void plotxy( int gph_idx, vector<int> x, vector<int> vy, const char *col_trc="br
 void plotxy( int gph_idx, float *arrx, float *arry, int cnt, const char *col_trc="brwn", const char *col_bkgd="ofw", const char *col_axis="drkb", const char *col_text="drkgry", const char *trc_label1="" );
 void plotxy( int gph_idx, double *arrx, double *arry, int cnt, const char *col_trc="brwn", const char *col_bkgd="ofw", const char *col_axis="drkb", const char *col_text="drkgry", const char *trc_label1="" );
 void plotxy( int gph_idx, int *arrx, int *arry, int cnt, const char *col_trc="brwn", const char *col_bkgd="ofw", const char *col_axis="drkb", const char *col_text="drkgry", const char *trc_label1="" );
+*/
+
 
 void update_fg_user_obj( int graph_idx );
 

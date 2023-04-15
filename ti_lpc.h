@@ -152,6 +152,10 @@ void cb_bt_addr_dec_inc_val( Fl_Widget *w, void *v );
 void cb_bt_addr_hist_prev_next( Fl_Widget *w, void *v );
 void addr_add_history( int addr );
 void cb_bt_hex_byte_text_file( Fl_Widget *w, void *v );
+void cb_bt_tms_code_tables_text_file( Fl_Widget *w, void *v );
+
+
+
 
 extern unsigned int last_say_offset;
 
