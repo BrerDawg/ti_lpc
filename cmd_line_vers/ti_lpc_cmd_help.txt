@@ -1,4 +1,4 @@
-Texas Instruments LPC Voice Synthesizer Decoder (e.g: Speak and Spell) v1.0
+Texas Instruments LPC Voice Synthesizer Decoder (e.g: Speak and Spell) v1.01
 
 Minimal parameter checks are performed, params are delimited by spaces, therefore, do not use spaces in filenames or strings on the command line.
 
@@ -8,7 +8,7 @@ Some commands use default values if none are specified.
 
 Pick the chip def file which sounds best.
 
-A hex string file is generated after render of audio named: 'zzzlast_utter_strhex.txt'
+A hex string file is generated after render of audio, named: 'zzzlast_utter_strhex.txt'
 
 Ubuntu users could add this to end of command to hear audio: && aplay zzzout.wav
 
@@ -24,7 +24,7 @@ ti_lpc_cmd mode=romlist rom0=tmc0351n2l.vsm rom1=tmc0352n2l.vsm fnameout=zzzaddr
 ti_lpc_cmd mode=romlist rom0=tmc0351n2l.vsm rom1=tmc0352n2l.vsm fnameout=zzzaddr_list.txt verb=on 	//with verbose enabled for detailed output
 
 
-ti_lpc_cmd mode=render chip=tms5100.txt rom0=tmc0351n2l.vsm rom1=tmc0352n2l.vsm wav=zzzout.wav gain=75 addr=12a1	 	//render using chip def t'ms5100.txt' and rom hex address 12a1 to audio file with gain of 75% (gain default is 75, and limits are between 0-->300)
+ti_lpc_cmd mode=render chip=tms5100.txt rom0=tmc0351n2l.vsm rom1=tmc0352n2l.vsm wav=zzzout.wav gain=75 addr=12a1	 	//render using chip def 'tms5100.txt' and rom hex address 12a1 to audio file with gain of 75% (gain default is 75, and limits are between 0-->300)
 
 ti_lpc_cmd mode=render chip=tms5100.txt rom0=tmc0351n2l.vsm rom1=tmc0352n2l.vsm addr=1600	 				//render using rom hex address 1600 to default audio file named 'zzzout.wav'
 
