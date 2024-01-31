@@ -1,5 +1,24 @@
-//ti_lpc_cmd.h
-//v1.01		28-jan-2024			//
+/*
+Copyright (C) 2024 BrerDawg
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
+//ti_lpc_cmd.cpp
+
+//v1.01		31-jan-2024			//
 
 
 
@@ -18,8 +37,8 @@ int srate_user = srate_wav;
 
 
 
-string slast_rom0_filename = "../roms/tmc0351n2l.vsm";
-string slast_rom1_filename = "../roms/tmc0352n2l.vsm";
+string slast_rom0_filename = "tmc0351n2l.vsm";
+string slast_rom1_filename = "tmc0352n2l.vsm";
 string fname_au = "zzzout.wav";
 string fname_tms_chip = "tms5100.txt";
 string fnamein0 = "zzzfile_in.txt";										//user specified filename for input, e.g: for c-code encoded string needing to be cleaned up
@@ -1439,7 +1458,7 @@ say_tmc0580( vsm, last_say_offset );
 
 int last_adress = 0;
 
-
+//portions of this code originate from Talkie prg on github
 void Talkie::say_tmc0580( uint8_t *buf_lpc, unsigned int offset )
 {
 bool vb_dbg = 0;
@@ -3067,7 +3086,7 @@ return 1;
 
 void show_usage()
 {
-printf("Texas Instruments LPC Voice Synthesizer Decoder (e.g: Speak and Spell) v1.0\n");
+printf("Texas Instruments LPC Voice Synthesizer Decoder (e.g: Speak and Spell) v1.01\n");
 printf("\n");
 printf("Minimal parameter checks are performed, params are delimited by spaces, therefore, do not use spaces in filenames or strings on the command line.\n");
 printf("\n");
@@ -3077,7 +3096,7 @@ printf("Some commands use default values if none are specified.\n");
 printf("\n");
 printf("Pick the chip def file which sounds best.\n");
 printf("\n");
-printf("A hex string file is generated after render of audio named: 'zzzlast_utter_strhex.txt'\n");
+printf("A hex string file is generated after render of audio, named: 'zzzlast_utter_strhex.txt'\n");
 printf("\n");
 printf("Ubuntu users could add this to end of command to hear audio: && aplay zzzout.wav\n");
 printf("\n");
@@ -3611,38 +3630,6 @@ if( ( mode_user == en_mu_cleanbrace ) || ( mode_user == en_mu_cleanquote ) )
 
 
 
-/*
-//----
-if( ( mode_user == en_mu_rendaddrfileline ) )
-	{
-	if( param_fnamein0 == 0 )
-		{
-		printf( "ERROR: need to specify a fnamein file containing hex strings.\n" );
-		exit_code = 1;
-		goto do_exit;
-		}
-
-	if( !get_line_at_index( fnamein0, line_idx, s1 ) )
-		{
-		printf( "ERROR: could not get string at line %d from file: '%s'.\n", line_idx, fnamein0.c_str() );
-		exit_code = 1;
-		goto do_exit;
-		}
-
-	say_lpc_str( s1, 0 );
-
-	strpf( s1, "%d", line_idx+1 );
-	m1 = s1;
-	m1.writefile( fnamelineindex );
-
-//	printf("line_idx %d: '%s'\n", line_idx, s1.c_str() );
-
-	goto do_exit;
-	}
-//----
-*/
-
-
 
 //----
 if( ( mode_user == en_mu_rendaddrfileseq ) )
@@ -3685,8 +3672,14 @@ if( ( mode_user == en_mu_rendaddrfileseq ) )
 			line_idx = iv;
 
 			int new_idx = line_idx + step_direc;						//inc/dec line index
-			
+
 			if( new_idx < 0 ) new_idx = 0;
+
+			if( step_direc < 0 )
+				{
+				line_idx = new_idx;
+				}
+		
 			strpf( s1, "%d", new_idx );
 			m1 = s1;
 		
@@ -3818,8 +3811,14 @@ if( ( mode_user == en_mu_rendstrfileseq ) )
 			line_idx = iv;
 
 			int new_idx = line_idx + step_direc;						//inc/dec line index
-			
+
 			if( new_idx < 0 ) new_idx = 0;
+
+			if( step_direc < 0 )
+				{
+				line_idx = new_idx;
+				}
+
 			strpf( s1, "%d", new_idx );
 			m1 = s1;
 		
@@ -3884,69 +3883,6 @@ if( ( mode_user == en_mu_rendstrfileseq ) )
 //----
 
 
-
-
-
-
-
-
-/*
-//----
-if( ( mode_user == en_mu_rendstrfileseq ) )
-	{
-	if( param_fnamein0 == 0 )
-		{
-		printf( "ERROR: need to specify a fnamein file containing hex strings.\n" );
-		exit_code = 1;
-		goto do_exit;
-		}
-
-	if( !get_line_at_index( fnamelineindex, 0, s1 ) )
-		{
-		printf( "NOTE: could not get line index from file: '%s', recreated file with line index set to zero.\n", fnamelineindex.c_str() );
-		s1 = "0\n";
-		m1 = s1;
-		m1.writefile( fnamelineindex );
-		goto do_exit;
-		}
-
-	if( s1.length() != 0 )
-		{
-		sscanf( s1.c_str(), "%d", &iv );
-		if( iv < 0 ) iv = 0;
-		
-		line_idx = iv;
-		strpf( s1, "%d", line_idx+1 );									//inc line index
-		m1 = s1;
-		m1.writefile( fnamelineindex );
-
-		printf( "getting line at index %d, from file: '%s'.\n", line_idx, fnamein0.c_str() );
-	
-		if( !get_line_at_index( fnamein0, line_idx, s1 ) )
-			{
-			printf( "ERROR:could not get string at line %d from file: '%s'.\n", line_idx, fnamein0.c_str() );
-			exit_code = 1;
-			goto do_exit;
-			}
-
-
-		say_lpc_str( s1, 0 );
-
-
-		goto do_exit;
-		}
-	else{
-		printf( "NOTE: could not get line index from file: '%s', recreated file with line index set to zero.\n", fnamelineindex.c_str() );
-		s1 = "0\n";
-		m1 = s1;
-		m1.writefile( fnamelineindex );
-		}
-
-
-	goto do_exit;
-	}
-//----
-*/
 
 
 
