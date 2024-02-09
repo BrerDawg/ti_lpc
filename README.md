@@ -1,4 +1,4 @@
-Apr 2023 v1.06
+Feb 2024 v1.06
 
 ## ti_lpc
 Texas Instrument Speak & Spell synthesizer, renders rom sounds/vocal hex strings to PC sound hardware/sound files. 
@@ -13,42 +13,46 @@ Also note the code is not precise in sound reproduction to the hardware, but it 
 Portions of this code come from the 'Speech library for Arduino' project:  https://github.com/going-digital/Talkie,
 You will find many lpc strings in that project to try, they are within c code files, but this app will accept cut/pasted versions of them, just copy the hex strings and comma delimiters, remove array names, equal signs, braces and semicolons.
 
-See also: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
+See also: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2</br>
 
-The app makes use of information from MAME project and the toil of numerous archivists(hackers), visit the mame site to see some amazing preservation coding.
+The app makes use of information from MAME project and the toil of numerous archivists(hackers), visit the mame site to see some amazing preservation coding.</br>
 
-Where pieces of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.
+Where pieces of code or ideas are originated from other people, the comments in source code will give links to who or where it came from.</br>
 
 
 
 
 ## Build
-The code was developed with gcc on Ubuntu 20.04 64 bit, may work for Windows, but has not been tested some time.
-Requires: RTAudio, pulseaudio, jack, and FLTK libraries for linking, fltk-1.3.4-2 or better should work.
+The code was developed with gcc on Ubuntu 20.04 64 bit, may work for Windows, but has not been tested some time.</br>
+##### For gui version:
+Requires: RTAudio, pulseaudio, jack, and FLTK libraries for linking, fltk-1.3.4-2 or better should work.</br>
 
-Uses fltk's fluid gui designer for layout of main window controls and some code is held within the fluid's 'fluid.fl' def file, fluid generated 'fluid.h' and 'fluid.cxx'.
+Uses fltk's fluid gui designer for layout of main window controls and some code is held within the fluid's 'fluid.fl' def file, fluid generated 'fluid.h' and 'fluid.cxx'.</br>
 
-To build executable, type: make
+To build gui executable, type: make</br>
 
-No installation is required.
+No installation is required.</br>
 
-If it built without error, then run: './ti_lpc' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and two '.au' audio files in same folder.
+If it built without error, then run: './ti_lpc' from a folder where permissions for execution have been enabled, the app will read/create a 'ti_lpc.ini' settings file, and two '.au' audio files in same folder.</br>
 
+##### For command line version:
+The command line version is built by going into its folder and running make.
 
 
 
 ## Usage
-Hover over controls to see a hint at what they do.
+##### For gui version:
+Hover over controls to see a hint at what they do.</br>
 
-Place Speak & Spell unzipped roms in a dir (Roms are optional, see below). Get them from a MAME rom site, e.g: snspell.zip. Then select their dir path with the 2 'Sel' buttons.
+Place Speak & Spell unzipped roms in a dir (Roms are optional, see below). Get them from a MAME rom site, e.g: snspell.zip. Then select their dir path with the 2 'Sel' buttons.</br>
 
-Speak & Spell roms come in pairs (see below regarding single roms), e.g: 
+Speak & Spell roms come in pairs (see below regarding single roms), e.g:</br> 
 
-USA rom0 file: tmc0351n2l.vsm 
-USA rom1 file: tmc0352n2l.vsm
+USA rom0 file: tmc0351n2l.vsm</br> 
+USA rom1 file: tmc0352n2l.vsm</br>
 
-UK rom0 file: cd2303.vsm					//quick way to to hear difference is sounding the Z letter, Zed of UK, Zee for USA
-UK rom1 file: cd2304.vsm
+UK rom0 file: cd2303.vsm					//quick way to to hear difference is sounding the Z letter, Zed of UK, Zee for USA</br>
+UK rom1 file: cd2304.vsm</br>
 
 
 Note: some units only had one Rom, these Roms are organised differently and their alphabet (if it was a Speak and Spell), various phrases and tone addresses are unknown, this code will not correctly show these roms. You will have to explore these roms using various controls provided to help map out addresses of where things are stored.
@@ -77,12 +81,12 @@ Note: if you set an incorrect 'pc srate' (i.e: not matching your current pc's au
 Long strings of speech (>20 secs of voicing) will take some time to render and be heard, it may appear the app has locked up, but if you ran app from a command line you will see it's probably still processing audio by the console output.
 
 Use 'AEdit' button to open your favourite audio editor, it runs a script/bat file and passes the saved .au audio filename you specified (or 'zz_audio.au'), edit the script or batch to call whatever audio app you prefer (script requires execution priveledges):
-(linux) 'open_audio_editor.sh'
-(windows) 'open_audio_editor.bat'
+(linux) 'open_audio_editor.sh'</br>
+(windows) 'open_audio_editor.bat'</br>
 
 
 
-To open the 'help.txt' file from Help menu, edit script below:
+To open the 'help.txt' file from Help menu, edit script below:</br>
 (linux) edit script file to call your favourite text editor (script requires execution priveledges): 'open_editor.sh'  (e.g: gedit $1 &)</br>
 (windows) edit bat file to call your favourite text editor (script requires execution priveledges): 'open_editor.bat'  (e.g: notepad %1)
 
@@ -91,6 +95,8 @@ To open the 'help.txt' file from Help menu, edit script below:
 You can use a (antique) program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wave file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
 Select a binary file to play using 'B.File' button.
+##### For command line version:
+For the command line version the run app 'ti_lpc_cmd' or 'ti_lpc_cmd.exe', use --help option or read the 'ti_lpc_cmd_help.txt' for usage examples.
 
 
 ## Graphs
@@ -98,22 +104,22 @@ Select a binary file to play using 'B.File' button.
 The embedded graph shows various waveforms, cyan trace marks start of each speech frame, green is glottal pitch/white noise stimulus that feeds into lattice filter, yellow is rendered speech wfm (lattice filter o/p, 8KHz)
 
 
-leftclick and drag to move trace on x-axis
-select a sample on a trace firstly (this also gives you keybrd focus),
+leftclick and drag to move trace on x-axis</br>
+select a sample on a trace firstly (this also gives you keybrd focus),</br>
 
 use mousewheel to change x scale.
 
-press 'c' to zero y offset positions.
+press 'c' to zero y offset positions.</br>
 
-press 'a' and spin mousewheel to change y amplitude, on a per trace basis
+press 'a' and spin mousewheel to change y amplitude, on a per trace basis</br>
 
-press 'x' and spin mousewheel to change x position (or just drag), for all traces 
-press 'y' and spin mousewheel to change y position, on a per trace basis
+press 'x' and spin mousewheel to change x position (or just drag), for all traces</br> 
+press 'y' and spin mousewheel to change y position, on a per trace basis</br>
 
 
 
-The second graph in its own window shows the samplerate converted speech wfm, this is at the samplerate you have entered for your current PC audio hardware.
-press 'h' for help on controlling this graph's trace
+The second graph in its own window shows the samplerate converted speech wfm, this is at the samplerate you have entered for your current PC audio hardware.</br>
+press 'h' for help on controlling this graph's trace.
 
 
 
@@ -152,7 +158,6 @@ twenty: 0x01,0x98,0xD1,0xC2,0x00,0xCD,0xA4,0x32,0x20,0x79,0x13,0x04,0x28,0xE7,0x
 (lpc gen by QBoxPro)
 kilo pictures: 30,9A,E4,A3,34,B2,CA,69,9A,D6,4E,D3,36,A7,6B,46,27,D8,DB,9C,A1,68,9B,60,6F,73,FA,22,6D,53,B4,CD,19,A2,CA,75,D6,35,67,08,B2,36,94,9B,8C,C1,9B,1E,15,A9,3B,06,AB,66,CC,38,4E,1B,8D,9E,09,95,C8,63,B4,A6,27,94,E3,8E,C1,DA,9A,54,4A,72,7A,EF,B2,53,A9,CD,E9,7D,F0,4A,E3,CE,A7,8B,59,33,D1,FA,9C,26,65,AE,60,DB,7C,9A,58,38,53,62,F3,69,52,C1,4A,8D,4D,A7,CA,05,2B,B5,56,9F,2A,57,EC,D0,5E,7D,AA,5C,B0,DD,6B,F1,29,4B,C3,72,EF,45,A7,AC,03,43,35,17,9F,B2,56,34,F3,58,9C,DC,12,D9,2C,B3,C9,28,87,63,67,8B,3A,AB,2A,96,4D,66,EA,AC,AA,78,11,E9,8D,3B,BA,62,9D,B4,66,4A,1B,32,4E,F7,AE,49,06,28,20,C7,00,57,89,3A,E0,18,09,07,54,9E,36,FA,2C,C3,23,B8,69,EB,BD,ED,30,D7,C6,AD,B7,AE,D3,83,5A,8F,CE,A5,8C,70,EE,BC,BA,90,2D,43,F5,F5,E9,53,E4,6A,D5,D5,A7,CF,91,B2,C3,1E,9F,3E,05,B5,A8,5C,72,FA,62,CC,2D,7A,6E,E9,B3,4A,B5,CC,3A,0C,08,D6,42,00,49,69,3A,20,5A,CD,33,F4,A0,A9,54,73,4F,5F,9D,26,CB,CC,2D,63,B2,1A,92,5B,25,8C,45,9B,AB,47,9D,30,76,A3,A6,E6,4D,04,D0,BC,AA,01,92,D6,38,4D,0B,56,AC,55,F7,74,2D,78,93,75,DD,D3,17,E7,25,39,51,CF,90,4D,B4,7B,D7,39,43,31,DE,62,53,FB,F4,D9,75,A8,77,DD,D3,67,55,65,5A,73,4E,9F,74,95,69,D7,3D,5D,B2,63,EA,3D,E5,F4,59,66,9A,54,DD,D1,0F,9C,A9,EA,4D,14,50,60,85,02,26,B6,18,DD,64,61,6E,5E,65,75,49,65,88,77,94,D1,25,19,21,DA,56,DB,90,84,A5,78,3A,2D,43,14,5A,12,E1,34,F5,4E,44,B9,47,EC,30,78,9E,99,69,71,DD,12,A9,56,86,C5,05,18,C9,F4,E5,1C,D6,64,24,2D,A8,4A,D4,DC,53,F7,A2,C6,96,F7,4E,D3,2A,99,56,CF,3D,4D,2B,68,9E,33,A5,8C,AD,A1,6A,F4,1C,06,38,23,25,80,22,39,1C,30,93,8A,03,D6,9A,08,C0,DC,53,01,98,BB,22,00,63,AA,1A,A0,37,F6,33,B5,46,66,D6,4B,CF,5C,33,46,46,2F,6E,73,0A,94,5D,3D,A9,CD,B5,B0,9A,46,93,36,97,40,11,D1,4B,DA,5C,1D,9B,56,D5,29,73,93,12,5A,3D,47,01,15,6A,28,E0,2B,52,05,7C,A7,22,80,AB,8C,05,70,8C,89,00,8E,30,13,C0,12,A6,04,E8,C2,ED,01
 ```
-
 
 
 
