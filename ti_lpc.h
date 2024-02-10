@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 //ti_lpc.h
-//v1.05			
+//v1.07			
 
 
 

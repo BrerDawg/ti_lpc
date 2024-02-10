@@ -24,6 +24,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //v1.03 	31-may-2019			//updated to mgraph v1.13
 //v1.04 	25-oct-2020			//further fixes
 //v1.05 	18-sep-2022			//added more features, such as auto address stepping with delta and delay options, see 'addr_step_auto_val_delay',  'addr_step_auto_val_delta'
+//v1.06		22-jul-2023			//moded for namespace 'filter_code::'
+//v1.07		18-sep-2023			//moded for namespace 'gc_srateconv::'
 
 
 
@@ -164,7 +166,7 @@ double twopi = 2.0 * M_PI;
 
 
 
-st_fir fir1, fir2;
+filter_code::st_fir fir1, fir2;
 
 int dbg_dump = 10;
 
@@ -2085,7 +2087,7 @@ Fl_Input *teText = new Fl_Input(10,10,wnd->w()-20,wnd->h()-20,"");
 teText->type(FL_MULTILINE_OUTPUT);
 teText->textsize(12);
 
-strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.06", cns_build_date );
+strpf( s1, "%s,  %s,  Built: %s\n", cnsAppWndName, "v1.07", cns_build_date );
 st += s1;
 
 
@@ -4950,7 +4952,7 @@ update_gph0( gph0_vamp0, gph0_vamp1, gph0_vamp2 );
 
 int last_adress = 0;
 
-
+//portions of this code originate from Talkie prg on github
 void Talkie::say_tmc0580( uint8_t *buf_lpc, unsigned int offset )
 {
 bool vb_dbg = 0;
@@ -5714,13 +5716,14 @@ if( srate <= lpc_srate )
 	fir_wndw = 256;
 	}
 
+//printf("ptr_8KHz %d  srconv_ratio %f\n", ptr_8KHz, srconv_ratio );
 printf("sample rate conversion 8KHz --> %d, samples: %f, nyquist: %f\n", srate, (ptr_8KHz * (1.0/srconv_ratio)), nyquist );
 
 //samples for pc audio
 for( int i = 0; i < (ptr_8KHz * (1.0/srconv_ratio)); i++ )
 	{
 //usage --->		//float qdss_resample_float( float x, float *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth )
-	float srconv_val = qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate, fir_wndw );
+	float srconv_val = gc_srateconv_code::qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate, fir_wndw );
 
 
 //		bool end_reached;
@@ -5767,7 +5770,7 @@ printf("sample rate conversion .au file: 8KHz --> %d, samples: %f, nyquist: %f\n
 	for( int i = 0; i < (ptr_8KHz * (1.0/srconv_ratio)); i++ )
 		{
 //usage --->		//float qdss_resample_float( float x, float *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth )
-		float srconv_val = qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate_au, fir_wndw );
+		float srconv_val = gc_srateconv_code::qdss_resample_float( cur_sample, fbuf1, ptr_8KHz, nyquist, srate_au, fir_wndw );
 
 //		bool end_reached;
 //usage --->		//float farrow_resample_float( float sampleIndexOutput, float *bf, unsigned int bfsize, bool &end_reached )
