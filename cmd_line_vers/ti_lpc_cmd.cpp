@@ -3159,9 +3159,9 @@ printf("\n");
 printf("\n");
 printf("ti_lpc_cmd mode=rendstrfileseq chip=tms5220.txt fnamein=Vocab_US_Large_str_clean.txt line=0	 			//render hex string(from spec fnamein) at line index (will store line index incremented by 1 in 'zzzline_index.txt'), zero based index, so 0 is the first line in file\n");
 printf("\n");
-printf("ti_lpc_cmd mode=rendstrfileseq chip=tms5220.txt fnamein=Vocab_US_Large_str_clean.txt	 				//render hex string(from spec fnamein) using a line index from file 'zzzline_index.txt', will incremented this index and store back to same 'zzzline_index.txt', useful to sequentially progress though a long list of string in a file, set line index with 'mode=rendstrfileline' option\n");
+printf("ti_lpc_cmd mode=rendstrfileseq chip=tms5220.txt fnamein=Vocab_US_Large_str_clean.txt	 				//render hex string(from spec fnamein) using a line index from file 'zzzline_index.txt', will incremented this index and store back to same 'zzzline_index.txt', useful to sequentially progress though a long list of string in a file\n");
 printf("\n");
-printf("ti_lpc_cmd mode=rendstrfileseq chip=tms5220.txt fnamein=Vocab_US_Large_str_clean.txt step=-3	 		//render hex string(from spec fnamein) using a line index from file 'zzzline_index.txt', will decremented this index trice and store back to same 'zzzline_index.txt', useful to sequentially regress though a long list of string in a file, set line index with 'mode=rendstrfileline' option\n");
+printf("ti_lpc_cmd mode=rendstrfileseq chip=tms5220.txt fnamein=Vocab_US_Large_str_clean.txt step=-3	 		//render hex string(from spec fnamein) using a line index from file 'zzzline_index.txt', will decremented this index trice and store back to same 'zzzline_index.txt', useful to sequentially regress though a long list of string in a file\n");
 printf("\n");
 }	
 

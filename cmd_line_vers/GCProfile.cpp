@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 BrerDawg
+Copyright (C) 2024 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -138,7 +138,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //-----v1.77 25-jan-2021 	//added: 'StrToEscMostCommon3()' which converts 'Equal' symbols
 //-----v1.78 29-jan-2021 	//moded LoadVectorStrings() - to handle first char being a delimiter, like: ,abc,def,,ghi,jkl
 //-----v1.79 14-aug-2022 	//moded 'make_dir_file_list()' to include relative path, see :'st_mystr_make_dir_file_list_tag.path_relative'	!! this does not included a leading 'dir_sep'  '/' 
-
+//-----v1.80 27-dec-2023 	//moded 'GCProfile::Save()' to fix 'fprintf()' write size limit, now uses 'fwrite()'
+//-----v1.81 05-feb-2024 	//moded 'ExtractParamVal_with_delimit()' to return 0  if extracted param length is zero, e.g. this would happen when extracting 'events0=' when str contained this 'events0=,'
 
 #include "GCProfile.h"
 //note a line entry cannot be bigger that cnMaxIniEntrySize
@@ -2421,6 +2422,8 @@ if(iEndPos==string::npos)						//no ending comma?
 	}
 				
 equ=csStr.substr(iPos,iEndPos-iPos);
+
+if( equ.length() == 0 ) return 0;										//v1.81
 
 return 1;	
 }
@@ -8060,7 +8063,8 @@ string csSave=csAll.substr(1,-1);				//remove initally added "\n" by function In
 fp=fopen(csFilename.c_str(),"w");				//open file for writing
 if(fp)
 	{
-	fprintf(fp,"%s",csSave.c_str());
+//	fprintf(fp,"%s",csSave.c_str());
+	fwrite( csSave.c_str(), 1, csSave.length(), fp ); 					//v1.80
 	fclose(fp);
 	return 1;
 	}
