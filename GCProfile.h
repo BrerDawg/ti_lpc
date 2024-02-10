@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 BrerDawg
+Copyright (C) 2024 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 //GCProfile.h
-//---- v1.79
+//---- v1.81
 
 
 #ifndef GCProfile_h

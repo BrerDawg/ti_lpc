@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2019 BrerDawg
+Copyright (C) 2023 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,13 +24,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //v1.02		07-nov-2020			//changed 'twopi' to a constant
 //v1.03		07-dec-2020			//added: 'qdss_resample_float_complete()'
 //v1.04		18-dec-2020			//added: 'float farrow_resample_float()', 'float farrow_resample_double()'
-
+//v1.05		19-dec-2022			//added: 'qdss_resample_float_vector()', 'farrow_resample_float_vector()'
+//v1.06		22-jul-2023			//moded for namespace 'filter_code::'
+//v1.07		18-sep-2023			//added namespace 'gc_srateconv_code'  and 'farrow_resample_double_vector()'
+//v1.08		16-oct-2023			//added 'qdss_resample_double_continuous()'   'qdss_resample_float_continuous()'
 
 
 
 
 #include "gc_srateconv.h"
 
+namespace gc_srateconv_code
+	{
 
 
 //extern double pi;
@@ -132,6 +137,9 @@ for ( i = -( wnwdth / 2 ); i <= ( wnwdth / 2 - 1 ); i++ ) 					//for 1 window wi
 		{
 		r_y = r_y + r_g * r_w * r_snc * buf[ j ];							//convolve/mac: first: apply von hann tapering to sinc, then both these to a src sample (adj gain as well)
 		}
+	else{
+//printf("qdss_resample() - forcing zero as j is %d\n", j );
+		}	
  	}
 return r_y;                  												//new filtered intermediate sample
 
@@ -634,11 +642,393 @@ else{
   
  done: // out of input data => break loops and continue here
 
-
+//printf("farrow_resample_double() - sampleIndexOutput %f   out %f\n", sampleIndexOutput, out );
 
 return out * cn_farrow_gain_adj;
 }
 //----------------------------------------------------------------------
+
+
+
+
+
+
+
+bool qdss_resample_float_vector( int output_count, unsigned int srate_in, float fmax, int wnwdth, vector<float>vin, vector<float>&vout )
+{
+
+if( vin.size() < 2 ) return 0;
+
+vout.clear();
+
+float *ptr = vin.data();
+	unsigned int bufsz = vin.size();
+	float step = (float)vin.size() / output_count;
+		
+	float x = 0.0f;
+	for( int i = 0; i < output_count; i++ )
+		{
+		float ff = qdss_resample_float( x, ptr, bufsz, fmax, srate_in, wnwdth );
+		
+		vout.push_back( ff );
+
+		x += step;
+//		if( ceilf( x ) > output_count ) break;
+		}		
+//printf( "qdss_resample_float_vector() - x %f\n", x );
+
+return 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool farrow_resample_float_vector( int output_count, vector<float>vin, vector<float>&vout )
+{
+bool vb = 0;
+
+if( vin.size() < 2 ) return 0;
+
+vout.clear();
+
+float *ptr = vin.data();
+	unsigned int bufsz = vin.size();
+	float step = (float)vin.size() / output_count;
+		
+	float x = 0.0f;
+	for( int i = 0; i < output_count; i++ )
+		{
+		bool end_reached;
+		float ff = farrow_resample_float( x, ptr, bufsz, end_reached );
+		
+		vout.push_back( ff );
+
+		x += step;
+		}		
+
+if(vb) printf( "farrow_resample_float_vector() - x %f\n", x );
+
+return 1;
+}
+
+
+
+
+
+
+
+
+
+bool farrow_resample_double_vector( int output_count, vector<double>vin, vector<double>&vout )
+{
+bool vb = 0;
+
+if( vin.size() < 2 ) return 0;
+
+vout.clear();
+
+double *ptr = vin.data();
+	unsigned int bufsz = vin.size();
+	float step = (float)vin.size() / output_count;
+		
+	float x = 0.0f;
+	for( int i = 0; i < output_count; i++ )
+		{
+		bool end_reached;
+		double dd = farrow_resample_double( x, ptr, bufsz, end_reached );
+		
+		vout.push_back( dd );
+
+		x += step;
+		}		
+
+if(vb) printf( "farrow_resample_double_vector() - x %f\n", x );
+
+return 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+//see 'qdss_resample()' for a desciption of what is code does, BUT additionaly, 
+//this version is 'frame buffer' freindly, allowing a stream of sample buffers to be supplied in succession and provides interpolation overlap across buffers,
+//'x' is shifted backwards by 'wnwdth/2' so filter kernel convolution does not go past end of supplied 'buf',
+//when 'x' is near the end of 'buf' it also copies some tailing samples to 'head_bf' for use when function is next called with 'x' near zero, this allows filter kernel convolution
+//to access samples before 'buf[0]' (using the previous calls tailing samples),
+//as mentioned this will happen when 'x' is near zero (ie. when the left side of the Hann windowed sinc impulse response sits over samples from previous call),
+//also, to avoid forced zero samples don't allow 'x' to exceed 'bufsz', ie. don't allow filter kernel convolution to reach passed 'buf[bufsz-1]'
+//'head_bf' must be big enough to hold 'wnwdth' samples
+//NOTE the initial call of this function may use 'head_bf' so init its contents to zero, interpolation of the first few samples may not be accurate on this first call only
+double qdss_resample_double_continuous( double xin, double *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth, double *head_bf )
+{
+double r_g,r_w,r_a,r_snc,r_y;												//some local variables
+int i, j;
+
+if( wnwdth <= 0 ) return 0;
+int half_wnd = wnwdth / 2;
+if( bufsz < wnwdth ) return 0;
+
+double x = xin - half_wnd;													//force a shift of 'x' position into so filter kernel convolution does not go past 'bufsz', this will cause use														
+																			//of 'head_bf' samples (from prev call) when needing samples around the beginning of 'buf', i.e. when spec 'x' is at or near zero
+
+r_g = 2.0 * fmax / fsrate;													//calc gain correction factor
+
+
+r_y = 0;
+for ( i = -( half_wnd ); i <= ( half_wnd - 1 ); i++ ) 						//for 1 window width
+	{
+    j = (int) x + i;          												//calc input sample index
+
+    r_w = 0.5 - 0.5 * cos( twopi * ( 0.5 + ( j - x ) / wnwdth ) );			//make a Hann sample, will be used taper sinc's impulse response length
+
+    r_a = twopi * ( j - x ) * fmax / fsrate;								//cur sinc location
+    r_snc = 1;
+	if ( r_a != 0 ) r_snc = sin( r_a ) / r_a;								//make a sinc (sin x/x) lpf sample
+
+//printf("i: %d, r_w: %f, r_a: %f, r_snc: %f\n", i, r_w, r_a, r_snc );
+
+	bool bneg_idx = 0;
+	if( j < 0 ) bneg_idx = 1;												//need samples from previous call ?
+
+	bool bforce_zero = 0;
+	if( j >= ( ( (int)bufsz) ) ) bforce_zero = 1;	
+
+//if( j<0 ) printf("qdss_resample_double_continuous() - x %f  i %d  j %d \n", x, i, j );
+
+	int idx;
+
+	if ( !bforce_zero )														//src sample avail?
+		{
+		if( bneg_idx )														//src sample pos in previous calls buf?
+			{
+			idx = wnwdth + j;											//j is negative here 
+			r_y = r_y + r_g * r_w * r_snc * head_bf[ idx ];				//convolve/mac: first: apply hann tapering (window) to sinc impulse response, then both these to a src sample (adj gain as well)
+//printf("qdss_resample_double_continuous() - xin %f  x %f   smpl is at %d,  getting smpl from head_bf[%d]\n", xin, x, j, idx );
+
+//			if ( xin < 10 )   printf("qdss_resample_double_continuous()0 -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+//			if ( xin > 4080 ) printf("qdss_resample_double_continuous()0 -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+			}
+		else{
+			r_y = r_y + r_g * r_w * r_snc * buf[ j ];						//convolve
+			}
+		}
+	else{
+printf("qdss_resample_double_continuous() - forcing zero as  xin %f x %f bufsz %d  i %d j is %d\n", xin, x, bufsz, i, j );
+		}	
+
+
+
+	//if( ( dbg_cnt3 == 0 ) || ( dbg_cnt3 == 1 ) || ( dbg_cnt3 == 2 ) || ( dbg_cnt3 == 3 ) || ( dbg_cnt3 == 4 ) )
+//	if( ( dbg_cnt3 <= 15 )  )
+		{
+	//	if( bneg_idx ) printf("qdss_resample_double_continuous()neg -  cnt %d  i %d  j %d  xin %f  x %f  idx %d  hbf[%f]  r_y %f\n", dbg_cnt3, i, j, xin, x, idx, head_bf[idx], r_y );
+	//	else printf("qdss_resample_double_continuous()pos -  cnt %d  i %d  j %d  xin %f  x %f  idx %d  buf[%f]  r_y %f\n", dbg_cnt3, i, j, xin, x, idx, buf[idx], r_y );
+	//	r_y = -1;
+		}
+
+
+ 	}
+
+
+//dbg_cnt3++;
+
+//if ( xin < 10 )   printf("qdss_resample_double_continuous() -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+//if ( xin > 4080 ) printf("qdss_resample_double_continuous() -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+
+//for ( int i = 0; i < half_wnd; i++ )
+//	{
+//	head_bf[i] = buf[ (bufsz - 1) - ( half_wnd - i ) ];					//copy tailing samples to 'head_bf[]' for next call use if any
+//	}
+
+
+
+bool bcopy_buf = 0;
+
+if( (floorf(x) >= ( bufsz - 16*wnwdth ) ) ) bcopy_buf = 1;				//approching samples near end of 'buf' ?, copy ending samples to 'head_bf'
+
+
+if( bcopy_buf )
+	{
+	for ( int i = 0; i < wnwdth; i++ )
+		{
+		int idx = (bufsz) - ( wnwdth - i );
+		head_bf[i] = buf[ idx ];					//copy tailing samples to 'head_bf[]' for next call use if any
+
+	//if( user_flag == 1 ) printf("qdss_resample_double_continuous() - head_bf[%d] = buf[%d] val %f\n", i, idx, head_bf[i] );
+		}
+	}
+
+//if( user_flag == 1 ) user_flag = 2;
+
+return r_y;                  											//new filtered intermediate sample
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//see 'qdss_resample()' for a desciption of what is code does, BUT additionaly, 
+//this version is 'frame buffer' freindly, allowing a stream of sample buffers to be supplied in succession and provides interpolation overlap across buffers,
+//'x' is shifted backwards by 'wnwdth/2' so filter kernel convolution does not go past end of supplied 'buf',
+//when 'x' is near the end of 'buf' it also copies some tailing samples to 'head_bf' for use when function is next called with 'x' near zero, this allows filter kernel convolution
+//to access samples before 'buf[0]' (using the previous calls tailing samples),
+//as mentioned this will happen when 'x' is near zero (ie. when the left side of the Hann windowed sinc impulse response sits over samples from previous call),
+//also, to avoid forced zero samples don't allow 'x' to exceed 'bufsz', ie. don't allow filter kernel convolution to reach passed 'buf[bufsz-1]'
+//'head_bf' must be big enough to hold 'wnwdth' samples
+//NOTE the initial call of this function may use 'head_bf' so init its contents to zero, interpolation of the first few samples may not be accurate on this first call only
+float qdss_resample_float_continuous( float xin, float *buf, unsigned int bufsz, float fmax, float fsrate, int wnwdth, float *head_bf )
+{
+double r_g,r_w,r_a,r_snc,r_y;												//some local variables
+int i, j;
+
+if( wnwdth <= 0 ) return 0;
+int half_wnd = wnwdth / 2;
+if( bufsz < wnwdth ) return 0;
+
+float x = xin - half_wnd;													//force a shift of 'x' position into so filter kernel convolution does not go past 'bufsz', this will cause use														
+																			//of 'head_bf' samples (from prev call) when needing samples around the beginning of 'buf', i.e. when spec 'x' is at or near zero
+
+r_g = 2.0 * fmax / fsrate;													//calc gain correction factor
+
+
+r_y = 0;
+for ( i = -( half_wnd ); i <= ( half_wnd - 1 ); i++ ) 						//for 1 window width
+	{
+    j = (int) x + i;          												//calc input sample index
+
+    r_w = 0.5 - 0.5 * cos( twopi * ( 0.5 + ( j - x ) / wnwdth ) );			//make a Hann sample, will be used taper sinc's impulse response length
+
+    r_a = ftwopi * ( j - x ) * fmax / fsrate;								//cur sinc location
+    r_snc = 1;
+	if ( r_a != 0 ) r_snc = sin( r_a ) / r_a;								//make a sinc (sin x/x) lpf sample
+
+//printf("i: %d, r_w: %f, r_a: %f, r_snc: %f\n", i, r_w, r_a, r_snc );
+
+	bool bneg_idx = 0;
+	if( j < 0 ) bneg_idx = 1;												//need samples from previous call ?
+
+	bool bforce_zero = 0;
+	if( j >= ( ( (int)bufsz) ) ) bforce_zero = 1;	
+
+//if( j<0 ) printf("qdss_resample_double_continuous() - x %f  i %d  j %d \n", x, i, j );
+
+	int idx;
+
+	if ( !bforce_zero )														//src sample avail?
+		{
+		if( bneg_idx )														//src sample pos in previous calls buf?
+			{
+			idx = wnwdth + j;											//j is negative here 
+			r_y = r_y + r_g * r_w * r_snc * head_bf[ idx ];				//convolve/mac: first: apply hann tapering (window) to sinc impulse response, then both these to a src sample (adj gain as well)
+//printf("qdss_resample_double_continuous() - xin %f  x %f   smpl is at %d,  getting smpl from head_bf[%d]\n", xin, x, j, idx );
+
+//			if ( xin < 10 )   printf("qdss_resample_double_continuous()0 -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+//			if ( xin > 4080 ) printf("qdss_resample_double_continuous()0 -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+			}
+		else{
+			r_y = r_y + r_g * r_w * r_snc * buf[ j ];						//convolve
+			}
+		}
+	else{
+printf("qdss_resample_float_continuous() - forcing zero as  xin %f x %f bufsz %d  i %d j is %d\n", xin, x, bufsz, i, j );
+		}	
+
+
+
+	//if( ( dbg_cnt3 == 0 ) || ( dbg_cnt3 == 1 ) || ( dbg_cnt3 == 2 ) || ( dbg_cnt3 == 3 ) || ( dbg_cnt3 == 4 ) )
+//	if( ( dbg_cnt3 <= 15 )  )
+		{
+	//	if( bneg_idx ) printf("qdss_resample_double_continuous()neg -  cnt %d  i %d  j %d  xin %f  x %f  idx %d  hbf[%f]  r_y %f\n", dbg_cnt3, i, j, xin, x, idx, head_bf[idx], r_y );
+	//	else printf("qdss_resample_double_continuous()pos -  cnt %d  i %d  j %d  xin %f  x %f  idx %d  buf[%f]  r_y %f\n", dbg_cnt3, i, j, xin, x, idx, buf[idx], r_y );
+	//	r_y = -1;
+		}
+
+
+ 	}
+
+
+//dbg_cnt3++;
+
+//if ( xin < 10 )   printf("qdss_resample_double_continuous() -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+//if ( xin > 4080 ) printf("qdss_resample_double_continuous() -  j %d  idx %d  xin %f  x %f r_y %f\n", j, idx, xin, x, r_y );
+
+//for ( int i = 0; i < half_wnd; i++ )
+//	{
+//	head_bf[i] = buf[ (bufsz - 1) - ( half_wnd - i ) ];					//copy tailing samples to 'head_bf[]' for next call use if any
+//	}
+
+
+
+bool bcopy_buf = 0;
+
+if( (floorf(x) >= ( bufsz - 16*wnwdth ) ) ) bcopy_buf = 1;				//approching samples near end of 'buf' ?, copy ending samples to 'head_bf'
+
+
+if( bcopy_buf )
+	{
+	for ( int i = 0; i < wnwdth; i++ )
+		{
+		int idx = (bufsz) - ( wnwdth - i );
+		head_bf[i] = buf[ idx ];					//copy tailing samples to 'head_bf[]' for next call use if any
+
+	//if( user_flag == 1 ) printf("qdss_resample_double_continuous() - head_bf[%d] = buf[%d] val %f\n", i, idx, head_bf[i] );
+		}
+	}
+
+//if( user_flag == 1 ) user_flag = 2;
+
+return r_y;                  											//new filtered intermediate sample
+
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -834,11 +1224,11 @@ saf_dest.channels = 		saf_src.channels;
 
 
 //----- calc filter coeffs ---
-en_filter_window_type_tag  wnd_type;
-en_filter_pass_type_tag filt_type;
+filter_code::en_filter_window_type_tag  wnd_type;
+filter_code::en_filter_pass_type_tag filt_type;
 
-wnd_type = fwt_blackman_harris;
-filt_type = fpt_bandpass;
+wnd_type = filter_code::fwt_blackman_harris;
+filt_type = filter_code::fpt_bandpass;
 
 unsigned int srate = saf_src.srate;
 unsigned int taps = 100;					//coeff count
@@ -848,7 +1238,7 @@ double fc2 = 9000;
 
 vector<double> vfir_coeff;
 
-filter_fir_windowed( wnd_type, filt_type, taps, fc1, fc2, srate, vfir_coeff );
+filter_code::filter_fir_windowed( wnd_type, filt_type, taps, fc1, fc2, srate, vfir_coeff );
 //------
 
 
@@ -1426,6 +1816,17 @@ delete fsamples;
 	
 }
 */
+
+
+
+
+
+	}	//namespace gc_srateconv_code
+
+
+
+
+
 
 
 

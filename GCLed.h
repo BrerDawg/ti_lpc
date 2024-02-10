@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2019 BrerDawg
+Copyright (C) 2022 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 //GCLed.h
-//---- v1.07
+//---- v1.09
 
 #ifndef gcled_h
 #define gcled_h
@@ -56,6 +56,10 @@ void *cb_mouse_button_changed_obj;
 void *cb_mouse_button_changed_args;
 
 
+void (*p_mouse_event_cb)( void* obj, void *args ); 
+void *cb_mouse_event_obj;
+void *cb_mouse_event_args;
+
 public:
 int led_style;                           //e.g: could be: cn_gcled_style_square, cn_gcled_style_round
 int id;
@@ -63,6 +67,10 @@ int id2;
 bool left_button;
 bool middle_button;
 bool right_button;
+int idelta_r;						//for brightness offset of currently shown led col
+int idelta_g;
+int idelta_b;
+int last_event;
 
 
 
@@ -79,6 +87,11 @@ int set_col_from_str( string rbg_list, char delimiter );
 
 bool ChangeCol( int iIn );
 void set_mouse_button_changed_callback( void (*p_cb)( void*, void* ), void *obj_in, void *args_in );
+void set_index_col_rgb( unsigned int idx, uint8_t rr, uint8_t bb, uint8_t gg );
+void adj_brightness_offset( int idelta_r_in, int idelta_g_in, int idelta_b_in );
+void adj_brightness_of_col_index( unsigned int idx, int idelta_r, int idelta_b, int idelta_g );
+void set_mouse_event_callback( void (*p_cb)( void*, void* ), void *obj_in, void *args_in );
+
 };
 
 #endif

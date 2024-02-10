@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2019 BrerDawg
+Copyright (C) 2022 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //---- v1.05    2020-mar-18     //moded all non space keydowns to pass onto parent
 //---- v1.06    2020-sep-19     //chaged 'if ( e & FL_ENTER )' to 'if ( e == FL_ENTER )' as this was stopping a parent 'FL_Scroll' scrolling via mousewheel when mouse inside 'GCLed'
 //---- v1.07    2020-oct-04     //added 'set_mouse_button_changed_callback()' and public 'left_button' 'middle_button' 'right_button' state flags
+//---- v1.08    2023-jan-07     //added 'set_col_from_rgb()' and 'adj_brightness_offset()' and 'adj_brightness_of_col_index()'
+//---- v1.09    2023-oct-26     //added 'set_mouse_event_callback()' and 'last_event'
 
 #include "GCLed.h"
 
@@ -108,10 +110,14 @@ GCLed::GCLed( int xx, int yy, int ww, int hh, const char *label ) : Fl_Widget( x
 has_focus = 0;
 
 iIndex=0;
+idelta_r = 0;
+idelta_g = 0;
+idelta_b = 0;
 
 led_style = cn_gcled_style_square;
 
 p_mouse_button_changed_cb = 0;
+p_mouse_event_cb = 0;
 
 id = 0;
 id2 = 0;
@@ -141,12 +147,32 @@ void GCLed::draw()
 //Fl_Window::draw();
 
 
+int rr = iR[ iIndex ] + idelta_r;
+int gg = iG[ iIndex ] + idelta_g;
+int bb = iB[ iIndex ] + idelta_b;
+
+if( rr < 0 ) rr = 0;
+if( rr > 255 ) rr = 255;
+
+if( gg < 0 ) gg = 0;
+if( gg > 255 ) gg = 255;
+
+if( bb < 0 ) bb = 0;
+if( bb > 255 ) bb = 255;
+
+
+
+
 if( led_style == cn_gcled_style_square )
     {
     fl_line_style( FL_SOLID );
     fl_color( 0, 0, 0 );
     fl_rect( x() + 2, y() + 2, w() - 4, h() - 4 );                  //draw outline
-    fl_rectf( x() + 3, y() + 3, w() - 6, h() - 6, iR[ iIndex ], iG[ iIndex ], iB[ iIndex ] );              //draw fill col
+
+
+
+	
+    fl_rectf( x() + 3, y() + 3, w() - 6, h() - 6, rr, gg, bb );              //draw fill col
 
     fl_color( 0, 0, 0 );
 
@@ -166,7 +192,7 @@ if( led_style == cn_gcled_style_round )
     fl_color( 0, 0, 0 );
     fl_arc( x() + 2, y() + 2, w() - 4, h() - 4, 0, 360 );                   //draw outline
 
-    fl_color( iR[ iIndex ], iG[ iIndex ], iB[ iIndex ] );
+    fl_color( rr, gg, bb );
     fl_pie( x() + 3, y() + 3, w() - 6, h() - 6, 0, 360 );                   //draw fill col
 
     //draw focus
@@ -190,6 +216,22 @@ int GCLed::handle( int e )
 
 bool need_redraw = 0;
 bool dont_pass_on = 0;
+
+bool b_do_event_cb = 0;
+
+last_event = e;
+
+//added event's here to trigger 'p_mouse_event_cb()'					//v1.09
+if ( ( e == FL_ENTER ) || ( e == FL_LEAVE ) || ( e == FL_FOCUS ) || ( e == FL_UNFOCUS ) || ( e == FL_PUSH ) || ( e == FL_RELEASE ) || ( e == FL_KEYDOWN ) || ( e == FL_KEYUP ) || ( e == FL_MOUSEWHEEL ) )
+    {
+	b_do_event_cb = 1;
+	}
+
+
+if( b_do_event_cb )
+	{
+	if( p_mouse_event_cb ) p_mouse_event_cb( cb_mouse_event_obj, cb_mouse_event_args );	//v1.09
+	}
 
 
 if ( e == FL_ENTER )		//v1.06, was 'e & FL_ENTER'
@@ -331,6 +373,83 @@ return 1;
 
 
 
+//load colour indexes from a string like this: "255 0 0, 0 255 0, 0 0 255"
+//note that each rgb colour set is seperated from next set by a comma, there MUST be a space between primary colour values within each set  
+void GCLed::set_index_col_rgb( unsigned int idx, uint8_t rr, uint8_t bb, uint8_t gg  )
+{
+
+if( idx >= cnMaxColIndex ) return;
+
+if( rr < 0 ) rr = 0;
+if( rr > 255 ) rr = 255;
+
+if( gg < 0 ) gg = 0;
+if( gg > 255 ) gg = 255;
+
+if( bb < 0 ) bb = 0;
+if( bb > 255 ) bb = 255;
+
+ 
+iR[ idx ] = rr;
+iG[ idx ] = gg;
+iB[ idx ] = bb;
+
+redraw();
+}
+
+
+
+
+
+//adj brightness by adding an offset to the current displayed 'SetColIndex()'
+void GCLed::adj_brightness_offset( int idelta_r_in, int idelta_g_in, int idelta_b_in )
+{
+
+idelta_r = idelta_r_in;
+idelta_g = idelta_g_in;
+idelta_b = idelta_b_in;
+
+redraw();
+}
+
+
+
+
+
+
+
+
+//adj brightness by adding an offset to the spec led colour index
+void GCLed::adj_brightness_of_col_index( unsigned int idx, int idelta_r, int idelta_b, int idelta_g )
+{
+if( idx >= cnMaxColIndex ) return;
+
+
+int rr = iR[ idx ] + idelta_r;
+int gg = iG[ idx ] + idelta_g;
+int bb = iB[ idx ] + idelta_b;
+
+if( rr < 0 ) rr = 0;
+if( rr > 255 ) rr = 255;
+
+if( gg < 0 ) gg = 0;
+if( gg > 255 ) gg = 255;
+
+if( bb < 0 ) bb = 0;
+if( bb > 255 ) bb = 255;
+
+iR[ idx ] = rr;
+iG[ idx ] = gg;
+iB[ idx ] = bb;
+
+redraw();
+}
+
+
+
+
+
+
 
 int GCLed::GetColIndex()
 {
@@ -363,4 +482,15 @@ cb_mouse_button_changed_obj = obj_in;
 cb_mouse_button_changed_args = args_in;
 }
 
+
+
+
+
+//could be used to handle a mouse enter/leave event
+void GCLed::set_mouse_event_callback( void (*p_cb)( void*, void* ), void *obj_in, void *args_in )
+{
+p_mouse_event_cb = p_cb;
+cb_mouse_event_obj = obj_in;
+cb_mouse_event_args = args_in;
+}
 

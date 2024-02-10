@@ -43,7 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 										//added: get_trace_offsxy(), get_background_offsxy(), clip_draw_point(),resize()
 										//further mods, e.g: trace clipping, see: 'get_trace_to_plot_factors()', see: trace_tag.plot_offsx/y
 										//added: 'fast_mgraph' class, see at bottom, there's rem'd out example code for usage: 'test_fast_mgraph()'
-										
+										//added: 'cb_fast_mgraph_menu_sample()', see 'b_allow_updating'
 							
 //v1.09     		21-jul-2018			//minor mod to: 'mgraph.h' for 64 bit 
 										//added: back_fill()
@@ -79,6 +79,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 										//now only takes vectors of floats or doubles, see e.g: 'plot_vfloat_2()'   'plotxy_vfloat_2()'    'plotxy_vdouble_2()'   etc,
 										//added 'xtick_marks[]' and  'ytick_marks[]',
 										//added 'b_x_axis_values_derived[]' to allow user to define 'x' axis labelling values, only works when no 'x' vector is supplied
+										
+//v1.20				16-apr-2023			//added 'vector<surfaceplot_text_obj_tag> vtxt' to 'test_surface3d()'
+//v1.21				17-sep-2023			//added 'b_bring_window_to_front' to 'fast_mgraph', used in 'cb_fast_gph_mouseenter()', now 'bring to front' is by default off
+
+//v1.22				14-oct-2023			//added 's' key option to select first sample on first trace if nothing is currently selected, see:  'keys[]'
+										//fixed x/y scale ticks marks changing size when trace amplitude was change by user, see 'fscly_tickx'
+										//added 'mgraph::get_mouse( int &mx, int &my )'
+										//moded 'update_fg_user_obj()' to improve 'fast_mgraph' x/y tick display values and hover values when 'a' 'm' 'y' adj have been made, see 'fscly_tickx', 'fscly_tickx'
+										//added 'sample_rect_showing[cn_mgraph_trace_max]' which is toggled by double clicking if 'trace_tag.sample_rect_hints' is set
+										//added 'trace_tag.sample_rect_flicker' flag 'mgraph' trace struct, shows momentary flicking of sample rect hinting when mouse is moved, not that useful
+										//added 'get_pixel_position_as_trc_values()'
+										//improved sample selection operations, now only a right click anywhere deselects
+										//added menu 'Sample' to 'fast_mgraph' to allow recording and recall of 4 previous plots, see 'b_prev_plot_recording'
+										//added 'fit_plot()' to 'fast_mgraph'
 
 #include "mgraph.h"
 
@@ -134,6 +148,7 @@ plt3d->offy = 60;
 
 surfaceplot_line_obj_tag loo;
 vector<surfaceplot_line_obj_tag> lo;
+vector<surfaceplot_text_obj_tag> vtxt;									//v1.20
 
 for( int yy = 0; yy < dimy; yy++ )              //zero grid val
     {
@@ -230,7 +245,7 @@ lo.push_back( loo );
 plt3d->grid_line_style = en_spls_solid;              //grid line style, see: en_surfaceplot_line_style
 plt3d->grid_line_wid = 1;                            //grid line width
 
-plt3d->build_surface( o, dimx, dimy, 1, 1, lo );
+plt3d->build_surface( o, dimx, dimy, 1, 1, lo, vtxt );
 
 }
 */
@@ -4152,7 +4167,6 @@ if( e & FL_MOVE )
 		need_redraw = 1;
 		}
 
-
 	dont_pass_on = 1;
 	}
 
@@ -4419,7 +4433,17 @@ clip_maxy = 5000;
 //clip_wdg_minx;				// will included widget x,y offset and borders [ set in draw() ], used for sample point rectangle hints
 //clip_wdg_maxx;
 //clip_wdg_miny;	
-//clip_wdg_maxy;	
+//clip_wdg_maxy;
+
+mousemove_cnt = 4;				//set this to a value that won't show sample rect hinting on first draw
+drw_cnt = 0;	
+
+
+for( int i = 0; i < cn_mgraph_trace_max; i++ )
+	{
+	sample_rect_showing[i] = 0;
+	}
+
 }
 
 
@@ -4465,6 +4489,7 @@ void mgraph::add_trace( trace_tag &tr )
 
 if( tr.pnt.size() == 0 ) return;
 
+if ( trce.size() >= cn_mgraph_trace_max ) return;
 
 tr.minx = tr.pnt[ 0 ].x;
 tr.maxx = tr.pnt[ 0 ].x;
@@ -8800,9 +8825,29 @@ int hints_distance_lastx;
 int hints_distancey;
 int hints_distance_lasty;
 
+
+
+
+
 //-------- draw traces ---------
 for( int i = 0; i < trce.size(); i++ )						//cycle each trace
 	{
+	bool bshowrect_hints = 0;
+
+	if( sample_rect_showing[i] )							//v1.22
+		{
+		bshowrect_hints = 1;	
+		}
+
+	if( trce[ i ].sample_rect_flicker )						//v1.22
+		{
+		if( (mousemove_cnt&0x0f) < 0x04 )					//make an infrequent show of sample rectangle hinting
+			{
+			bshowrect_hints = 1;	
+			}
+		}
+
+
 
 	hints_distancex = -1;									//flag for init far below, used to detect sample rectangle congestion
 	hints_distance_lastx;
@@ -9236,9 +9281,14 @@ fl_rect(  xx, yy, 10, 10 );
                 oldy = y;
                 }
 
+//			if( ( double_click_left && trce[ i ].sample_rect_hints_double_click ) || ( trce[ i ].sample_rect_hints ) )			//show all sample point bounding rect hints?
+//				{
+				
+//				if( trce[ i ].sample_rect_showing ) bshowrect_hints = 1;
+//				}
 
-
-			if( ( double_click_left && trce[ i ].sample_rect_hints_double_click ) || ( trce[ i ].sample_rect_hints ) )			//show all sample point bounding rect hints?
+			
+			if( bshowrect_hints )										//show all sample point bounding rect hints?
 				{
 				//simple sample point rect culling
 				bool skip = 0;
@@ -9459,7 +9509,7 @@ fl_line_style( FL_SOLID, 1 );
 // --- show sample point bounding rects ---
 for( int i = 0; i < trce.size(); i++ )
 	{
-	if( ( double_click_left & trce[ i ].sample_rect_hints_double_click ) | ( trce[ i ].sample_rect_hints ) )
+//	if( ( double_click_left & trce[ i ].sample_rect_hints_double_click ) || ( trce[ i ].sample_rect_hints ) ) //v1.22
 		{
 
 		fl_color( trce[ i ].sample_rect_hints_col.r, trce[ i ].sample_rect_hints_col.g, trce[ i ].sample_rect_hints_col.b );
@@ -9584,6 +9634,8 @@ fl_pop_clip();
 //draw_cursors();
 
 draw_text();
+
+drw_cnt++;
 }
 
 
@@ -9896,6 +9948,19 @@ return 1;
 
 
 
+
+//relative to widget top/left position, does not remove any borders
+void mgraph::get_mouse( int &mx, int &my )
+{
+mx = mousex;
+my = mousey;
+}
+
+
+
+
+
+
 //the values are pixel coords left is 0, right is wid
 void mgraph::get_mouse_pixel_position_on_background( int &mx, int &my )
 {
@@ -10030,7 +10095,7 @@ double x2 = trce[ trc ].pnt[ right_idx ].x;
 double xmin, xmax, ymin, ymax;
 get_trace_min_max( trc, xmin, xmax, ymin, ymax );
 
-
+//printf("mgraph::get_mouse_position_relative_to_trc_new() - ymin %f %f  posx %f  plot_offsx %f\n", ymin, ymax, trce[ trc ].posx, trce[ trc ].plot_offsx );
 
 
 int offx, offy;
@@ -10042,6 +10107,7 @@ get_trace_vis_dimensions( trc, wid, hei );
 
 mx = x1 + (x2 - x1) * ( (float)(mousex - offx) / wid );
 
+//mx -= trce[ trc ].posx;
 
 
 
@@ -10070,6 +10136,117 @@ return 1;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 'px, py' are pixel coords
+// 'valx, valy' are values the pixel coords would translate to on trace
+bool mgraph::get_pixel_position_as_trc_values( int trc, int px, int py, double &valx, double &valy )
+{
+	
+	
+px = mousex;
+py = mousey;
+
+if ( trce.size() == 0 ) return 0;
+
+if ( trc < 0 ) return 0;
+if( trc >= trce.size() ) return 0;
+
+if( trce[ trc ].pnt.size() < 2 ) return 0;
+
+int left_idx, right_idx;
+
+if( !get_left_edge_sample_idx( trc, left_idx ) ) return 0;
+if( !get_right_edge_sample_idx( trc, right_idx ) ) return 0;
+
+if( left_idx < 0 ) left_idx = 0;
+if( left_idx >= trce[ trc ].pnt.size() ) left_idx = trce[ trc ].pnt.size() - 1;
+
+if( right_idx < 0 ) right_idx = 0;
+if( right_idx >= trce[ trc ].pnt.size() ) right_idx = trce[ trc ].pnt.size() - 1;
+
+double x1 = trce[ trc ].pnt[ left_idx ].x;
+double x2 = trce[ trc ].pnt[ right_idx ].x;
+
+
+
+
+
+double xmin, xmax, ymin, ymax;
+get_trace_min_max( trc, xmin, xmax, ymin, ymax );
+
+//printf("mgraph::get_pixel_position_as_trc_values() - ymin %f %f  posx %f  plot_offsx %f\n", ymin, ymax, trce[ trc ].posx, trce[ trc ].plot_offsx );
+
+
+int offx, offy;
+get_trace_offsxy( trc, offx, offy );
+
+
+
+int wid, hei;
+//get_vis_dimensions( wid, hei );
+get_trace_vis_dimensions( trc, wid, hei );
+
+valx = x1 + (x2 - x1) * ( (float)(px - offx) / wid );
+
+//mx -= trce[ trc ].posx;
+
+
+
+
+
+
+
+
+//offy = trce[ trc ].border_left;
+
+
+get_background_offsxy( offx, offy );
+
+//printf( "get_pixel_position_as_trc_values() -  px %d %d  offsy %d\n", px, py, offy );
+//printf( "get_pixel_position_as_trc_values() -  x1 %f  x2 %f\n", x1, x2 );
+
+
+get_background_dimensions( wid, hei );
+
+float scle_trc_y = trce[trc].scaley;
+
+
+//float ctrly = (float)(my ) / (gph[ ii ]->h() - offy) ;
+float ctrly = (float)( py - offy ) / (hei) ;
+
+//double dposy;
+//gph[ ii ]->get_posx_relative_to_trace( 0, dposy );
+
+float yunits_pp = trce[trc].yunits_perpxl;
+
+float shfty = trce[trc].posy * yunits_pp / scle_trc_y;
+
+//float vis_maxy = (gph[ ii ]->h() - offy) * yunits_pp / scle_trc_y;
+float vis_maxy = (hei) * yunits_pp / scle_trc_y;
+
+
+float vis_miny = -vis_maxy / 2.0f;
+
+valy = vis_miny + vis_maxy * (1.0f - ctrly) - shfty;
+
+//printf( "get_pixel_position_as_trc_values() -  valx %f %f\n", valx, valy );
+
+
+return 1;
+}
 
 
 
@@ -11112,6 +11289,7 @@ if ( e == FL_ENTER )
 if ( e == FL_LEAVE )	
 	{
 	inside_control = 0;
+	mousemove_cnt = 4;													//set this to a value that won't show sample rect hinting								
 
 	if( mouseleave_cb_p_callback )
 		{
@@ -11124,8 +11302,16 @@ if ( e == FL_LEAVE )
 
 if ( e & FL_MOVE )
 	{
-	mousex = Fl::event_x();
-	mousey = Fl::event_y();
+	int msex = Fl::event_x();
+	int msey = Fl::event_y();
+	
+	bool mse_mve = 0;
+	
+	if( msex != mousex ) mse_mve = 1;
+	if( msey != mousey ) mse_mve = 1;
+	
+	mousex = msex;
+	mousey = msey;
 
 	if ( inside_control )
 		{
@@ -11163,6 +11349,8 @@ if ( e & FL_MOVE )
 					}
 				}
             }
+		if( mse_mve ) mousemove_cnt++;	//v1.22
+
         need_redraw = 1;
         dont_pass_on = 1;
         }
@@ -11178,6 +11366,13 @@ if ( e == FL_PUSH )
     last_clicked_trace = -1;
 
 
+	for( int i = 0; i < trce.size(); i++ )								//toggle sample rectangle hinting
+		{
+		if( double_click_left == 2 )
+			{
+			if( trce[ i ].sample_rect_hints_double_click ) sample_rect_showing[ i ] = !sample_rect_showing[ i ];		//v1.22
+			}
+		}
 
 	for( int i = 0; i < trce.size(); i++ )
 		{
@@ -11202,6 +11397,7 @@ if ( e == FL_PUSH )
             if( left_double_click_anywhere_cb_p_callback ) left_double_click_anywhere_cb_p_callback( left_double_click_anywhere_cb_args );
             }
         }
+
 
 
     if( Fl::event_button() == 3 )
@@ -11368,9 +11564,21 @@ return Fl_Widget::handle( e );
 
 //simple to use graphing class
 
-void cb_fast_mgraph_open_save(Fl_Widget *w, void *v );
 
-void cb_fast_mgraph_open_save(Fl_Widget *w, void *v )
+void cb_fast_mgraph_menu_open_save(Fl_Widget *w, void *v )
+{
+int which = (int)v;
+
+fl_alert( "Not yet implemented", 0 );
+if( which == 0 )
+	{
+
+	}
+}
+
+
+
+void cb_fast_mgraph_menu_edit(Fl_Widget *w, void *v )
 {
 int which = (int)v;
 
@@ -11386,23 +11594,91 @@ if( which == 0 )
 
 
 
+void cb_fast_mgraph_menu_sample(Fl_Widget *w, void *v )
+{
+string s1;
+	
+int which = (int)v;
+
+Fl_Widget *ow = (Fl_Widget*)w;
+fast_mgraph *op = (fast_mgraph*)w->parent();
+
+
+if( which == 0 )
+	{
+	op->b_prev_plot_recording = !op->b_prev_plot_recording ;
+	
+	}
+
+if( which == 1 )
+	{
+	op->plot_updating_state = 1;
+	}
+
+if( which == 2 )
+	{
+	op->plot_updating_state = 0;
+	}
+
+if( which ==10 )
+	{
+	op->plot_updating_state = 2;
+	op->prev_plot_show_choice = 0;
+	}
+
+if( which == 11 )
+	{
+	op->plot_updating_state = 2;
+	op->prev_plot_show_choice = 1;
+	}
+
+if( which == 12 )
+	{
+	op->plot_updating_state = 2;
+	op->prev_plot_show_choice = 2;
+	}
+
+if( which == 13 )
+	{
+	op->plot_updating_state = 2;
+	op->prev_plot_show_choice = 3;
+	}
+
+}
+
+
+
+
+
 
 void cb_fast_mgraph_help( Fl_Widget *w, void *v )
 {
 string s1, st;
-s1 = "Left click and drag to move traces on x-axis,\nselect a sample on a trace firstly (this also gives you keybrd focus),\n";
+s1 = "Left click and drag to move traces on x-axis.\n\n";
 st += s1;
 
-s1 = "press 't' to toggle between traces,\ncursor keys to navigate samples.\n\nUse mousewheel to change 'x' scale (press 'x' to restore x scale to unity),\n\n";
+s1 = "Press 's' to select first sample on first trace if nothing is currently selected.\n";
 st += s1;
 
-s1 = "Press 'm' and spin mousewheel to change value that will display with max y deflection.\n\n";
+s1 = "Press 't' to toggle between traces. Use cursor keys to navigate samples.\n";
 st += s1;
 
-s1 = "Press 'a' on a trace and spin mousewheel to change its amplitude (y scaling), 'z' will force any trace scaling to unity.\n\n";
+s1 = "Use mousewheel to change 'x' scale (press 'x' to restore x scale to unity).\n\n";
 st += s1;
 
-s1 = "Press 'y' and spin mousewheel to change y position of trace, on a per trace basis ('z' to restore).\n\nClick 2 sample points in succession to see delta x,y and Hz.";
+s1 = "Press 'f' to find/center trace.\n";
+st += s1;
+
+s1 = "Press 'm' and spin mousewheel to change value that will display with max y deflection.\n";
+st += s1;
+
+s1 = "Press 'a' on a trace and spin mousewheel to change its amplitude (y scaling), 'z' will force any trace scaling to unity.\n";
+st += s1;
+
+s1 = "Press 'y' and spin mousewheel to change y position of trace, on a per trace basis ('z' to restore).\n\nClick 2 sample points in succession to see delta x,y and Hz.\n";
+st += s1;
+
+s1 = "Tripple click to toggle rectangle hinting of all sample points.";
 st += s1;
 
 fl_alert( st.c_str(), 0 );
@@ -11413,16 +11689,16 @@ Fl_Menu_Item fast_mgraph_menuitems[] =
 {
 	{ "&File",              0, 0, 0, FL_SUBMENU },
 //		{ "&OpenFolderTest", FL_CTRL + 'o'	, (Fl_Callback *)cb_open_folder, 0 },
-		{ "&SaveWve...", 0	, (Fl_Callback *)cb_fast_mgraph_open_save,(void*) 0 },
-		{ "&SaveAu...", 0	, (Fl_Callback *)cb_fast_mgraph_open_save, (void*) 1 },
-		{ "&SaveCsv...", 0	, (Fl_Callback *)cb_fast_mgraph_open_save, (void*) 2 },
-		{ "&SaveRaw...", 0	, (Fl_Callback *)cb_fast_mgraph_open_save, (void*) 2 },
+		{ "&SaveWve...", 0	, (Fl_Callback *)cb_fast_mgraph_menu_open_save,(void*) 0 },
+		{ "&SaveAu...", 0	, (Fl_Callback *)cb_fast_mgraph_menu_open_save, (void*) 1 },
+		{ "&SaveCsv...", 0	, (Fl_Callback *)cb_fast_mgraph_menu_open_save, (void*) 2 },
+		{ "&SaveRaw...", 0	, (Fl_Callback *)cb_fast_mgraph_menu_open_save, (void*) 2 },
 //		{ "&Save", FL_CTRL + 's'	, (Fl_Callback *)cb_btSave, 0, FL_MENU_DIVIDER },
 //		{ "E&xit", FL_CTRL + 'q'	, (Fl_Callback *)cb_btQuit, 0 },
 		{ 0 },
 
 	{ "&Edit", 0, 0, 0, FL_SUBMENU },
-//		{ "&Undo",  FL_CTRL + 'z', (Fl_Callback *)cb_edit_undo},
+//		{ "&Undo",  FL_CTRL + 'z', (Fl_Callback *)cb_fast_mgraph_menu_edit},
 //		{ "&Redo",  FL_CTRL + 'y', (Fl_Callback *)cb_edit_redo, 0, FL_MENU_DIVIDER },
 //		{ "Cu&t",  FL_CTRL + 'x', (Fl_Callback *)cb_edit_cut },
 //		{ "&Copy",  FL_CTRL + 'c', (Fl_Callback *)cb_edit_copy },
@@ -11431,6 +11707,26 @@ Fl_Menu_Item fast_mgraph_menuitems[] =
 //		{ "&Preferences2..",  0, (Fl_Callback *)cb_pref2},
 //		{ "&Font Pref..",  0, (Fl_Callback *)cb_font_pref},	
 		{ 0 },
+
+
+	{ "&Sample", 0, 0, 0, FL_SUBMENU },
+		{ "&AllowPlotRecording",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)0,  FL_MENU_TOGGLE | FL_MENU_DIVIDER },
+		{ "&ContinuousPlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)1,  FL_MENU_RADIO|FL_MENU_VALUE },
+		{ "&PausePlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)2,  FL_MENU_RADIO },
+		{ "&LastRecPlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)10,  FL_MENU_RADIO },
+		{ "&2ndLastRecPlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)11,  FL_MENU_RADIO },
+		{ "&3rdLastRecPlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)12,  FL_MENU_RADIO },
+		{ "&4thLastRecPlot",  0, (Fl_Callback *)cb_fast_mgraph_menu_sample, (void*)13,  FL_MENU_RADIO },
+//		{ "&Redo",  FL_CTRL + 'y', (Fl_Callback *)cb_edit_redo, 0, FL_MENU_DIVIDER },
+//		{ "Cu&t",  FL_CTRL + 'x', (Fl_Callback *)cb_edit_cut },
+//		{ "&Copy",  FL_CTRL + 'c', (Fl_Callback *)cb_edit_copy },
+//		{ "Past&e",  FL_CTRL + 'v', (Fl_Callback *)cb_edit_paste, 0, FL_MENU_DIVIDER },
+//		{ "&Preferences..",  0, (Fl_Callback *)cb_pref},
+//		{ "&Preferences2..",  0, (Fl_Callback *)cb_pref2},
+//		{ "&Font Pref..",  0, (Fl_Callback *)cb_font_pref},	
+		{ 0 },
+
+
 
 //	{ "&Sel",              0, 0, 0, FL_SUBMENU },
 //		{ "&ToggleSelTrace", 0	, (Fl_Callback *)cb_fast_mgraph_toggle_sel_trace,(void*) 0 },
@@ -11484,37 +11780,79 @@ if( p->keyshift[ ii ] )
 		if( right <= p->sel_idx1[ ii ] ) p->sel_idx2[ ii ] = right - 1;
 		else  p->sel_idx2[ ii ] = right;
 		}
-printf( "left: %d, %d\n",p->sel_idx1[ ii ],p->sel_idx2[ ii ] );
+//printf( "left: %d, %d\n",p->sel_idx1[ ii ],p->sel_idx2[ ii ] );
 
 	}
 else{
-	p->last_sel_trc = -1;
-	p->sel_idx1[ ii ] = -1;
-	p->sel_idx2[ ii ] = -1;
+//	p->last_sel_trc = -1;												//v1.22
+//	p->sel_idx1[ ii ] = -1;
+//	p->sel_idx2[ ii ] = -1;
 	}
 
 }
 
 
 
-void cb_fast_gph_right_click_anywhere( void* )
+
+
+
+
+
+void cb_fast_gph_right_click_anywhere( void*v )
 {
+mgraph *o = (mgraph*)v;
+fast_mgraph *p = (fast_mgraph*)o->parent();
+
+int ii = o->graph_id;
+
+p->last_sel_trc = -1;													//v1.22
+p->sel_idx1[ ii ] = -1;
+p->sel_idx2[ ii ] = -1;
 }
 
 
 
-void cb_fast_gph_left_click_release( void* )
+
+
+
+
+void cb_fast_gph_left_click_release( void*v )
 {
+mgraph *o = (mgraph*)v;
+fast_mgraph *p = (fast_mgraph*)o->parent();
+
+int ii = o->graph_id;
+
+int trc = p->last_sel_trc;
+
+if( trc >= 0 )
+	{
+	int samp_idx = p->last_sel0_idx[ ii ];
+	
+	o->set_selected_sample( trc, samp_idx, 0 );
+	}
+
 }
+
+
 
 
 
 void cb_fast_gph_mouseenter( void* args )
 {
-Fl::focus( (Fl_Window*)args );
+//Fl::focus( (Fl_Window*)args );
 
-//mgraph *o = (mgraph* )args;
+//mgraph *o = (mgraph* )args;	
+
+
+mgraph *o = (mgraph*)args;
+fast_mgraph *p = (fast_mgraph*)o->parent();
+
+if( p->b_bring_window_to_front ) Fl::focus( (Fl_Window*)args );
 }
+
+
+
 
 
 
@@ -11545,19 +11883,19 @@ int trc = o->get_selected_trace_and_sample_indexes( samp_idx );
 if( trc != -1 )
 	{
 	p->last_sel_trc = trc;
-	p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];
-	p->last_sel1_x[ 0 ] = p->last_sel0_x[ 0 ];
-	p->last_sel1_y[ 0 ] = p->last_sel0_y[ 0 ];
+	p->last_sel1_idx[ ii ] = p->last_sel0_idx[ ii ];					//v1.22
+	p->last_sel1_x[ ii ] = p->last_sel0_x[ ii ];
+	p->last_sel1_y[ ii ] = p->last_sel0_y[ ii ];
 	o->deselect_all_samples(0);
 	o->set_selected_sample( trc, samp_idx, 0 );
 
-	p->last_sel0_idx[ 0 ] = samp_idx;
-	o->get_selected_value( trc, p->last_sel0_x[ 0 ], p->last_sel0_y[ 0 ] );
+	p->last_sel0_idx[ ii ] = samp_idx;
+	o->get_selected_value( trc, p->last_sel0_x[ ii ], p->last_sel0_y[ ii ] );
 
 //printf("trc: %d\n",trc);
 	}
 else{
-	p->last_sel_trc = -1;
+//	p->last_sel_trc = -1;												//v1.22
 	}
 
 int my;
@@ -11595,14 +11933,14 @@ int trc = o->get_selected_trace_and_sample_indexes( samp_idx );
 if( trc != -1 )
 	{
 	p->last_sel_trc = trc;
-	p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];
-	p->last_sel1_x[ 0 ] = p->last_sel0_x[ 0 ];
-	p->last_sel1_y[ 0 ] = p->last_sel0_y[ 0 ];
+	p->last_sel1_idx[ ii ] = p->last_sel0_idx[ ii ];					//v1.22
+	p->last_sel1_x[ ii ] = p->last_sel0_x[ ii ];
+	p->last_sel1_y[ ii ] = p->last_sel0_y[ ii ];
 	o->deselect_all_samples(0);
 	o->set_selected_sample( trc, samp_idx, 0 );
 
-	p->last_sel0_idx[ 0 ] = samp_idx;
-	o->get_selected_value( trc, p->last_sel0_x[ 0 ], p->last_sel0_y[ 0 ] );
+	p->last_sel0_idx[ ii ] = samp_idx;
+	o->get_selected_value( trc, p->last_sel0_x[ ii ], p->last_sel0_y[ ii ] );
 	}
 else{
 	p->last_sel_trc = -1;
@@ -11649,14 +11987,14 @@ int trc = o->get_selected_trace_and_sample_indexes( samp_idx );
 if( trc != -1 )
 	{
 	p->last_sel_trc = trc;
-	p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];
-	p->last_sel1_x[ 0 ] = p->last_sel0_x[ 0 ];
-	p->last_sel1_y[ 0 ] = p->last_sel0_y[ 0 ];
+	p->last_sel1_idx[ ii ] = p->last_sel0_idx[ ii ];					//v1.22
+	p->last_sel1_x[ ii ] = p->last_sel0_x[ ii ];
+	p->last_sel1_y[ ii ] = p->last_sel0_y[ ii ];
 	o->deselect_all_samples(0);
 	o->set_selected_sample( trc, samp_idx, 0 );
 
-	p->last_sel0_idx[ 0 ] = samp_idx;
-	o->get_selected_value( trc, p->last_sel0_x[ 0 ], p->last_sel0_y[ 0 ] );
+	p->last_sel0_idx[ ii ] = samp_idx;
+	o->get_selected_value( trc, p->last_sel0_x[ ii ], p->last_sel0_y[ ii ] );
 	}
 else{
 	p->last_sel_trc = -1;
@@ -11669,6 +12007,57 @@ o->get_posx( 0, p->drag_start_posx );
 }
 
 
+
+	
+
+
+
+
+//adj params so graph trace is visible
+void fast_mgraph::fit_plot( int grph_idx )
+{
+
+int ii = 0;
+
+if( grph_idx >= 0 )		//multiple graphs?
+	{
+	ii = grph_idx;
+	}
+
+
+	int samp_idx;
+	int sel_trc = gph[ii]->get_selected_trace_and_sample_indexes( samp_idx );
+	
+	int iw, ih;
+	gph[ii]->get_trace_vis_dimensions( 0, iw, ih );
+	
+	double xmin, xmax, ymin, ymax;
+	gph[ii]->get_trace_min_max( 0, xmin, xmax, ymin, ymax );
+
+	gph[ii]->set_scaley( 0, 1.0f, 1 );										//first remove any 'a' key scaling
+	scale_trc_y[ii][0] = 1.0f;
+
+	gph[ii]->set_posy( 0, shift_trc_y[ii][0], 1 );
+
+	float dy = ymax - ymin;												//calc max 'y' range
+	float middley = dy/2 + ymin;										//find mid point
+
+
+	max_defl_y[ii] = dy/2.0f * 1.2f;									//set a max range just over actual max range
+
+	plot_grph_internal( gph[ii]->graph_id );							//need to replot graph twice (using cached vectors) as 'p->max_defl_y[ii]' has been changed
+	plot_grph_internal( gph[ii]->graph_id );							//need to replot graph twice (using cached vectors) as 'p->max_defl_y[ii]' has been changed
+
+
+	float shfty = -middley/gph[ii]->trce[0].yunits_perpxl;					//make a pixel val offset to center trace in the middle of its 'y' range values
+	shift_trc_y[ii][0] = shfty;									
+
+//printf("cb_fast_gph_keydown() - shift_trc_y %f  max_defl_y %f   yunits_perpxl %f  scale_trc_y %f\n", p->shift_trc_y[ii][0], p->max_defl_y[ii], o->trce[0].yunits_perpxl, p->scale_trc_y[ii][ 0 ] );
+
+//o->adj_posy_by( sel_trc, 40.0, 1 );
+
+	plot_grph_internal( gph[ii]->graph_id );									//do it again: as found when 'multi_trace' is in use the 'ctl-m' adj was one mousewheel detent behind, doing this twice here hides this - to be FIXED
+}
 
 
 
@@ -11683,9 +12072,72 @@ fast_mgraph *p = (fast_mgraph*)o->parent();
 
 int ii = o->graph_id;
 
+
 if( int0 == 'a' ) p->keya[ ii ] = 1;
 if( int0 == 'y' ) p->keyy[ ii ] = 1;
 if( int0 == 'm' ) p->keym[ ii ] = 1;
+
+
+if( int0 == 's' ) 														//select a sample if none sel
+	{
+	p->keys[ ii ] = 1;
+
+	p->select_first_sample_on_trc0_if_nothing_is_selected();
+	}
+
+
+if( int0 == 'f' ) 
+	{
+	
+	p->keyf[ ii ] = 1;
+
+	if( p->multi_trace != 0 ) ii = 0;									//only one graph?
+
+	p->fit_plot( ii );
+
+/*
+	int samp_idx;
+	int sel_trc = o->get_selected_trace_and_sample_indexes( samp_idx );
+	
+	int iw, ih;
+	o->get_trace_vis_dimensions( 0, iw, ih );
+	
+	double xmin, xmax, ymin, ymax;
+	o->get_trace_min_max( 0, xmin, xmax, ymin, ymax );
+
+	o->set_scaley( 0, 1.0f, 1 );										//first remove any 'a' key scaling
+	p->scale_trc_y[ii][0] = 1.0f;
+
+	o->set_posy( 0, p->shift_trc_y[ii][0], 1 );
+
+	float dy = ymax - ymin;												//calc max 'y' range
+	float middley = dy/2 + ymin;										//find mid point
+
+
+
+//	double scly;
+//	o->get_scaley( 0, scly );
+
+	
+
+	p->max_defl_y[ii] = dy/2.0f * 1.2f;									//set a max range just over actual max range
+
+	p->plot_grph_internal( o->graph_id );									//need to replot graph twice (using cached vectors) as 'p->max_defl_y[ii]' has been changed
+	p->plot_grph_internal( o->graph_id );									//need to replot graph twice (using cached vectors) as 'p->max_defl_y[ii]' has been changed
+
+
+	float shfty = -middley/o->trce[0].yunits_perpxl;					//make a pixel val offset to center trace in the middle of its 'y' range values
+	p->shift_trc_y[ii][0] = shfty;									
+
+//printf("cb_fast_gph_keydown() - shift_trc_y %f  max_defl_y %f   yunits_perpxl %f  scale_trc_y %f\n", p->shift_trc_y[ii][0], p->max_defl_y[ii], o->trce[0].yunits_perpxl, p->scale_trc_y[ii][ 0 ] );
+
+//o->adj_posy_by( sel_trc, 40.0, 1 );
+
+	p->plot_grph_internal( o->graph_id );									//do it again: as found when 'multi_trace' is in use the 'ctl-m' adj was one mousewheel detent behind, doing this twice here hides this - to be FIXED
+*/
+	}
+
+
 
 if( ( int0 == FL_Shift_L ) | ( int0 == FL_Shift_R ) )  p->keyshift[ ii ] = 1;
 
@@ -11705,7 +12157,7 @@ if( int0 == 't' )
 //		int count;
 //		o->get_sample_count_for_trc( trc, count );
 
-		p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];
+		p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];					//NOTE: multi_trace only exists when there is a single graph, so using xxx[0] here as always refering to the first and only graph
 		p->last_sel1_x[ 0 ] = p->last_sel0_x[ 0 ];
 		p->last_sel1_y[ 0 ] = p->last_sel0_y[ 0 ];
 		o->deselect_all_samples( 0 );
@@ -11757,6 +12209,14 @@ if( int0 == 'z' )
 
 int samp_idx;
 int trc = o->get_selected_trace_and_sample_indexes( samp_idx );
+
+if( trc == -1 )
+	{
+	p->select_first_sample_on_trc0_if_nothing_is_selected();			//v1.22
+	}
+
+trc = o->get_selected_trace_and_sample_indexes( samp_idx );
+
 if( trc != -1 )
 	{
 	int count;
@@ -11766,20 +12226,26 @@ if( trc != -1 )
 	if ( ( int0 == FL_Left ) | ( int0 == FL_Right ) | ( int0 == FL_Down ) | ( int0 == FL_Up ) | ( int0 == FL_Page_Down ) | ( int0 == FL_Page_Up ) | ( int0 == FL_Home ) | ( int0 == FL_End ) )
 		{
 		cursor_key = 1;
-		p->last_sel1_idx[ 0 ] = p->last_sel0_idx[ 0 ];
-		p->last_sel1_x[ 0 ] = p->last_sel0_x[ 0 ];
-		p->last_sel1_y[ 0 ] = p->last_sel0_y[ 0 ];
+		p->last_sel1_idx[ ii ] = p->last_sel0_idx[ ii ];					//v1.22
+		p->last_sel1_x[ ii ] = p->last_sel0_x[ ii ];
+		p->last_sel1_y[ ii ] = p->last_sel0_y[ ii ];
 		}
 
 
 	if( int0 == FL_Left )
 		{
-		o->set_selected_sample( trc, samp_idx - 1, 0 );
+		samp_idx -= 1;
+		if( samp_idx < 0 ) samp_idx = 0;
+
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 
 	if( int0 == FL_Right )
 		{
-		o->set_selected_sample( trc, samp_idx + 1, 0 );
+		samp_idx += 1;
+		if( samp_idx >= count ) samp_idx = count - 1;
+		
+//		o->set_selected_sample( trc, samp_idx , 0 );
 		}
 
 
@@ -11787,14 +12253,14 @@ if( trc != -1 )
 		{
 		samp_idx -= 10;
 		if( samp_idx < 0 ) samp_idx = 0;
-		o->set_selected_sample( trc, samp_idx, 0 );
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 
 	if( int0 == FL_Up )
 		{
 		samp_idx += 10;
 		if( samp_idx >= count ) samp_idx = count - 1;
-		o->set_selected_sample( trc, samp_idx, 0 );
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 
 
@@ -11802,34 +12268,35 @@ if( trc != -1 )
 		{
 		samp_idx -= 100;
 		if( samp_idx < 0 ) samp_idx = 0;
-		o->set_selected_sample( trc, samp_idx, 0 );
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 
 	if( int0 == FL_Page_Up )
 		{
 		samp_idx += 100;
 		if( samp_idx >= count ) samp_idx = count - 1;
-		o->set_selected_sample( trc, samp_idx , 0 );
+//		o->set_selected_sample( trc, samp_idx , 0 );
 		}
 
 	if( int0 == FL_Home )
 		{
 		samp_idx -= 10000;
 		if( samp_idx < 0 ) samp_idx = 0;
-		o->set_selected_sample( trc, samp_idx, 0 );
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 
 	if( int0 == FL_End )
 		{
 		samp_idx += 10000;
 		if( samp_idx >= count ) samp_idx = count - 1;
-		o->set_selected_sample( trc, samp_idx, 0 );
+//		o->set_selected_sample( trc, samp_idx, 0 );
 		}
 	
 	if( cursor_key )
 		{
-		p->last_sel0_idx[ 0 ] = samp_idx;
-		o->get_selected_value( trc, p->last_sel0_x[ 0 ], p->last_sel0_y[ 0 ] );
+		p->last_sel0_idx[ ii ] = samp_idx;
+		o->set_selected_sample( trc, samp_idx, 0 );
+		o->get_selected_value( trc, p->last_sel0_x[ ii ], p->last_sel0_y[ ii ] );
 		}
 	}
 p->update_fg_user_obj( ii );
@@ -11847,8 +12314,10 @@ fast_mgraph *p = (fast_mgraph*)o->parent();
 int ii = o->graph_id;
 
 if( int0 == 'a' ) p->keya[ ii ] = 0;
+if( int0 == 'f' ) p->keyf[ ii ] = 0;
 if( int0 == 'y' ) p->keyy[ ii ] = 0;
 if( int0 == 'm' ) p->keym[ ii ] = 0;
+if( int0 == 's' ) p->keys[ ii ] = 0;
 
 if( ( int0 == FL_Shift_L ) | ( int0 == FL_Shift_R ) )  p->keyshift[ ii ] = 0;
 }
@@ -11881,11 +12350,12 @@ fast_mgraph *p = (fast_mgraph*)o->parent();
 
 int ii = o->graph_id;
 
-if( p->multi_trace != 0 ) ii = 0;								//only one graph?
+if( p->multi_trace != 0 ) ii = 0;										//only one graph?
 
 int samp_idx;
 int sel_trc = o->get_selected_trace_and_sample_indexes( samp_idx );
 bool zoom_in = 0;
+
 
 
 if( p->keym[ ii ] )			//max deflection y
@@ -11910,6 +12380,9 @@ if( p->keya[ ii ] )			//amplitude adj
 //printf("sel_trc: %d\n",sel_trc);
 //	if( int0 > 0.0 ) o->adj_scaley_by( sel_trc, 1.2, 1 );
 //	if( int0 < 0.0 ) o->adj_scaley_by( sel_trc, 1.0/1.2, 1 );
+
+
+	p->select_first_sample_on_trc0_if_nothing_is_selected();
 
 	if( sel_trc == 0 )			//do to all
 		{
@@ -11941,21 +12414,12 @@ if( p->keya[ ii ] )			//amplitude adj
 
 if( p->keyy[ ii ] )			//y pos adj
 	{
-
-if( p->multi_trace != 0 )
-	{
-	if( p->multi_trace == 3 )
-		{
-//		p->plot( p->vtrc_valy1[ 0 ],  p->vtrc_valy2[ 0 ],  p->vtrc_valy3[ 0 ] );
-		}
-	}
-
 double dd;
 
 	if( sel_trc == 0 )
 		{
-		if( int0 > 0.0 ) o->adj_posy_by( sel_trc, 12.5, 1 );		//in unison
-		if( int0 < 0.0 ) o->adj_posy_by( sel_trc, -12.5, 1 );
+		if( int0 > 0.0 ) o->adj_posy_by( sel_trc, 10.0, 1 );		//in unison
+		if( int0 < 0.0 ) o->adj_posy_by( sel_trc, -10.0, 1 );
 		
 		o->get_posy( sel_trc, dd );
 		p->shift_trc_y[ii][sel_trc] = dd;
@@ -12056,6 +12520,7 @@ if( p->center_sel_sample_on_zoom_change )
 done:
 //p->update_fg_user_obj( o->graph_id );
 p->plot_grph_internal( o->graph_id );									//need to replot graph (using cached vectors) as 'p->max_defl_y[ii]' may have been changed by mousewheel
+p->plot_grph_internal( o->graph_id );									//do it again: as found when 'multi_trace' is in use the 'ctl-m' adj was one mousewheel detent behind, doing this twice here hides this - to be FIXED
 
 return;
 }
@@ -12070,129 +12535,6 @@ return;
 
 
 
-
-
-
-
-
-/*
-void cb_fast_gph_mousewheel( void*v, int int0 )
-{
-mgraph *o = (mgraph*)v;
-fast_mgraph *p = (fast_mgraph*)o->parent();
-
-int ii = o->graph_id;
-
-if( p->multi_trace != 0 ) ii = 0;							//only one graph?
-
-int samp_idx;
-int sel_trc = o->get_selected_trace_and_sample_indexes( samp_idx );
-bool zoom_in = 0;
-
-if( p->keya[ ii ] )			//amplitude adj
-	{
-//printf("sel_trc: %d\n",sel_trc);
-	if( int0 > 0.0 ) o->adj_scaley_by( sel_trc, 1.2, 1 );
-	if( int0 < 0.0 ) o->adj_scaley_by( sel_trc, 1.0/1.2, 1 );
-	goto done;
-	}
-
-
-if( p->keyy[ ii ] )			//y pos adj
-	{
-
-if( p->multi_trace != 0 )
-	{
-	if( p->multi_trace == 3 )
-		{
-//		p->plot( p->vtrc_valy1[ 0 ],  p->vtrc_valy2[ 0 ],  p->vtrc_valy3[ 0 ] );
-		}
-	}
-
-	if( sel_trc == 0 )
-		{
-		if( int0 > 0.0 ) o->adj_posy_by( sel_trc, 12.5, 1 );		//in unison
-		if( int0 < 0.0 ) o->adj_posy_by( sel_trc, -12.5, 1 );
-		}
-	else{
-		if( int0 > 0.0 ) o->adj_plot_offsy_by( sel_trc, 10, 1 );	//individual
-		if( int0 < 0.0 ) o->adj_plot_offsy_by( sel_trc, -10, 1 );
-		}
-
-	goto done;
-	}
-
-
-
-//if( int0 > 0.0 ) { p->scale_change = 1.5; zoom_in = 1; }
-//else p->scale_change = 1.5;
-if( int0 > 0.0 ) zoom_in = 1;
-
-
-//if( zoom_in ) o->zoom_h_all_traces(  p->left_hov_idx,  p->scale_change, 1 );
-//else o->zoom_h_all_traces(  p->left_hov_idx, 1.0/p->scale_change, 1 );
-
-if( zoom_in ) o->zoom_h_all_traces(  p->left_hov_idx,  1.5, 1 );
-else o->zoom_h_all_traces(  p->left_hov_idx, 1.0/1.5, 1 );
-
-
-
-
-//o->trce[ 0 ].scalex = 1;///= 2;
-
-//if( zoom_in ) o->zoom_h( 0, p->left_hov_idx, 1.5, 1 );
-//else  o->zoom_h( 0, p->left_hov_idx, 1.0/1.5, 1 );
-
-//o->trce[ 0 ].scalex = 1.5;
-//o->set_left_edge_sample_idx( 0, 400 );
-
-//o->trce[ 0 ].scalex = 2;///= 2;
-//o->trce[ 0 ].posx = 0;
-//o->redraw();
-//o->trce[ 0 ].posx = -355;
-
-//printf("cb_fast_gph_mousewheel() - posx %f\n",  o->trce[ 0 ].posx );
-
-//printf("cb_fast_gph_mousewheel() - o->trce[ 0 ].scalex %f\n", o->trce[ 0 ].scalex );
-
-//int left;
-
-//o->get_left_edge_sample_idx( 0, left );
-//o->set_left_edge_sample_idx( 0, left);
-//printf("cb_fast_gph_mousewheel() - left %d\n", left );
-
-//o->trce[ 0 ].posx = 300;
-//o->trce[ 1 ].posx = 0;
-
-//o->trce[ 0 ].plot_offsx = 0;
-//o->trce[ 1 ].plot_offsx = 0;
-
-//printf("minx %f\n", o->trce[ 0 ].minx );
-
-if( p->center_sel_sample_on_zoom_change )
-	{
-//	o->center_on_sample( sel_trc, samp_idx );		//v1.16
-	
-//	o->trce[ 1 ].posx = o->trce[ 0 ].posx ;
-//	o->center_on_sample( 1, samp_idx );		//v1.16
-	}
-
-//double ff;
-//if( o->get_posx( 0, ff ) )
-//	{
-//	double scalex;
-//	o->get_scalex( 0, scalex);
-//	float offx = ( ff - p->x_axis_offs);
-//	o->set_posx( 0, offx, 1 );
-//	o->set_posx( 0, -offx + -o->trce[0].border_left, 1 );
-//	}
-
-done:
-p->update_fg_user_obj( o->graph_id );
-//o->redraw();
-}
-
-*/
 
 
 
@@ -12262,6 +12604,7 @@ if( o->left_button )													//dragging x-axis?
 		float posx_shift = (float)slip2 / count * wid * scalex;
 
 		o->set_posx( 0, p->drag_start_posx + posx_shift, 1 );					//drag traces
+//o->set_posx( 0, 10, 1 );
 		
 		for( int i = 1; i < p->multi_trace; i++ )
 			{
@@ -12506,7 +12849,11 @@ right_click_cb_p = 0;
 
 center_sel_sample_on_zoom_change = 1;
 
+b_bring_window_to_front = 0;
 
+plot_updating_state = 1;
+b_prev_plot_recording = 0;
+prev_plot_show_choice = 0;
 
 
 //init vars
@@ -12525,8 +12872,10 @@ for( int i = 0; i < cn_fast_mgraph_cnt_max; i++ )
 
 
 	keya[i] = 0;
+	keyf[i] = 0;
 	keyy[i] = 0;
 	keym[i] = 0;
+	keys[i] = 0;
 	keyshift[i] = 0;
 	sel_idx1[i] = -1;
 	sel_idx2[i] = -1;
@@ -12845,12 +13194,15 @@ string s1, s2, s3, s4;
 mystr m1;
 //bool mgraph::get_scaley( int trc, double &val )
 
-//printf( "update_fg_user_obj() graph_idx %d\n", graph_idx );
-
-
 int ii = graph_idx;
-//printf("update_use_obj() - graph_idx: %d\n", graph_idx );
+
+//printf("update_fg_user_obj() - graph_idx: %d\n", graph_idx );
 //user draw objs
+
+if( gph[ ii ]->trce.size() == 0 ) return;
+
+
+
 gph[ ii ]->vdrwobj.clear();
 
 //if( ii == 0 ) return;
@@ -12889,16 +13241,154 @@ mdo.clip_bottom = 0;
 //mdo.wid = 10;
 //mdo.hei = 10;
 
+																						//this will be used to adj y tick values, so they follow trace's y position
+
 
 
 //mouse hov values
 mdo.type = en_dobt_text;
 
+
+
+
+
+
+
+double minx, maxx;
+double miny, maxy;
+
+gph[ii]->get_trace_min_max( 0, minx, maxx, miny, maxy );
+
+float extreme_y;
+
+if( fabs( maxy ) >= fabs( miny ) ) extreme_y = maxy;
+else extreme_y = fabs( miny );
+
+if( max_defl_y[ ii ] == 0.0 ) max_defl_y[ ii ] = extreme_y;				//this happens only on the initial (first) draw
+
+
+
+
+
+//printf( "update_fg_user_obj() max_defl_y %f\n", max_defl_y[ii] );
+
+
+
+
 double valx, valy;
-gph[ ii ]->get_mouse_position_relative_to_trc_new( 0, valx, valy );
+//gph[ ii ]->get_mouse_position_relative_to_trc_new( 0, valx, valy );		//this does not work for 'fast_graph' due to various offsets, such as: 'shift_trc_y[][]',  'x_axis_offs' and 'posx', see below for fixes
 
 //double posxxxxx;
 //gph[ii]->get_posx(0, posxxxxx );
+
+
+int mx, my;
+//gph[ ii ]->get_mouse( mx, my );
+
+gph[ ii ]->get_mouse_pixel_position_on_background( mx, my );
+
+double minxx, maxxx, minyy, maxyy;
+gph[ ii ]->get_trace_min_max( 0, minxx, maxxx, minyy, maxyy );
+
+
+float scle_trc_y = scale_trc_y[ ii ][0];
+
+
+//printf( "update_fg_user_obj() mousex %d %d\n", mx, my );
+
+//printf( "update_fg_user_obj() minxx %f %f   minyy %f %f\n", minxx, maxxx,  minyy, maxyy );
+
+
+
+
+
+
+{
+//----	v1.22 calc 'y' hover value
+
+//int vis_wid, vis_hei;	
+//gph[ii]->get_trace_vis_dimensions( 0, vis_wid, vis_hei );
+//float shfty = (maxyy - minyy)/2  * ((float)shift_trc_y[ ii ][0] / ((float)vis_hei/2 ));	//v1.22, make a value from 'shift_trc_y[][]' (which is in pixels), so that it represents how much a trace has be shifted in y sample values,
+
+
+
+
+int offx, offy;
+gph[ ii ]->get_background_offsxy( offx, offy );
+
+
+int wid, hei;
+gph[ ii ]->get_background_dimensions( wid, hei );
+
+
+//float ctrly = (float)(my ) / (gph[ ii ]->h() - offy) ;
+float ctrly = (float)(my ) / (hei) ;
+
+//double dposy;
+//gph[ ii ]->get_posx_relative_to_trace( 0, dposy );
+
+float yunits_pp = yunits_perpxl[ii];
+
+float shfty = shift_trc_y[ ii ][0] * yunits_pp / scle_trc_y;
+
+//float vis_maxy = (gph[ ii ]->h() - offy) * yunits_pp / scle_trc_y;
+float vis_maxy = (hei) * yunits_pp / scle_trc_y;
+
+
+float vis_miny = -vis_maxy / 2.0f;
+
+valy = vis_miny + vis_maxy * (1.0f - ctrly) - shfty;
+
+//printf( "update_fg_user_obj() minyy %f %f   vis_miny %f shfty %f\n", minyy, maxyy, vis_miny, shfty );
+
+//printf( "update_fg_user_obj()  offy %d h() %d, my %d  ctrly %f  yunits_pp %f  scle_trc_y %f vis_maxy %f valy %f\n", offy,  gph[ ii ]->h(), my, ctrly, yunits_pp, scle_trc_y, vis_maxy, valy  );
+
+//printf( "update_fg_user_obj()  valy %f  shfty %f    valy %f\n", valy, shfty, valy - shfty );
+//----
+}
+
+
+
+
+
+
+
+{
+//----	v1.22 calc 'x' hover value
+
+//int mx, my;
+//gph[ ii ]->get_mouse( mx, my );
+
+//int offx, offy;
+//gph[ ii ]->get_trace_offsxy( 0, offx, offy );
+
+
+
+
+//double dposx;
+//gph[ ii ]->get_posx_relative_to_trace( 0, dposx );
+
+double dmx, dmy;
+gph[ ii ]->get_mouse_position_relative_to_trc( 0, dmx, dmy );
+
+//printf( "update_fg_user_obj()  dmy %f %f\n", dmx, dmy );
+
+//printf( "update_fg_user_obj()  minxx %f %f\n", minxx, maxxx );
+//printf( "update_fg_user_obj()  offx %d\n", offx );
+//printf( "update_fg_user_obj()  posx %f\n", dposx );
+
+//float ctrlx = (float)(mx - offx ) / (gph[ ii ]->w() - offx) ;
+//valx = (maxxx-minxx) * ctrlx + minxx;
+
+//valx -= dposx;
+
+valx = dmx;
+
+//printf( "update_fg_user_obj()  offx %d mx %d  wid %d  ctrlx %f valx %f  dposx %f\n", offx, mx, gph[ ii ]->w(), ctrlx, valx, dposx );
+//----
+}
+
+
 
 if( b_x_axis_values_derived[ii] )									//does user want to display specific x axis values ? (only works for plots without a supplied x vector)
 	{
@@ -12908,6 +13398,7 @@ if( b_x_axis_values_derived[ii] )									//does user want to display specific x
 		valx = x_axis_values_derived_left_value[ii] + ( x_axis_values_derived_inc_value[ii] * valx );
 		}
 	}
+
 
 
 if( ( use_logx ) && ( disp_vals_undo_logx ) ) valx = pow(10, valx);	//v1.13
@@ -12927,6 +13418,13 @@ m1.make_engineering_str_exp( snum, sunits, scombined, 2, valy, sappend_num, sapp
 
 s2 = scombined;
 strpf( s1, "hov x:%s  y:%s", s1.c_str(), s2.c_str() );
+
+double dposx;
+gph[ ii ]->get_posx_relative_to_trace( 0, dposx );
+
+int iposx;
+gph[ ii ]->get_plot_offsy( 0, iposx );
+
 
 mdo.x1 = 70;
 mdo.y1 = 9;
@@ -12965,7 +13463,7 @@ if( trc != -1 )
 		{
 		if( !b_x_axis_vector_supplied[ii] )
 			{
-			int idx = last_sel0_idx[ 0 ];
+			int idx = last_sel0_idx[ ii ];								//v1.22
 
 			valx = x_axis_values_derived_left_value[ii] + ( x_axis_values_derived_inc_value[ii] * idx );
 			}
@@ -13016,16 +13514,16 @@ if( trc != -1 )
 //	double dx = last_sel0_x[0] - last_sel1_x[0];
 //	double dy = last_sel0_y[0] - last_sel1_y[0];
 	
-	double dx0 = last_sel0_x[0];
-	double dx1 = last_sel1_x[0];
+	double dx0 = last_sel0_x[ii];									//v1.22
+	double dx1 = last_sel1_x[ii];
 
 
 	if( b_x_axis_values_derived[ii] )									//does user want to display specific x axis values ? (only works for plots without a supplied x vector)
 		{
 		if( !b_x_axis_vector_supplied[ii] )
 			{
-			int idx0 = last_sel0_idx[ 0 ];
-			int idx1 = last_sel1_idx[ 0 ];
+			int idx0 = last_sel0_idx[ ii ];								//v1.22
+			int idx1 = last_sel1_idx[ ii ];
 
 			dx0 = x_axis_values_derived_left_value[ii] + ( x_axis_values_derived_inc_value[ii] * idx0 );
 			dx1 = x_axis_values_derived_left_value[ii] + ( x_axis_values_derived_inc_value[ii] * idx1 );
@@ -13046,7 +13544,7 @@ if( trc != -1 )
 	double dx = dx0 - dx1;
 
 
-	double dy0 = last_sel0_y[0];
+	double dy0 = last_sel0_y[0];										//v1.22
 	double dy1 = last_sel1_y[0];
 
 	if( ( use_logy ) && ( disp_vals_undo_logy ) ) 						//v1.13
@@ -13072,7 +13570,7 @@ if( trc != -1 )
 	m1.make_engineering_str_exp( snum, sunits, scombined, sig_dig, dddx, sappend_num, sappend_units, 0 );
 	s4 = scombined;
 
-	int delta_cnt = last_sel0_idx[0] - last_sel1_idx[0];
+	int delta_cnt = last_sel0_idx[ii] - last_sel1_idx[ii];				//v1.22
 	strpf( s1, "dcnt:%d  dx:%s  dy:%s (Freq:%s Hz)", delta_cnt, s2.c_str(), s3.c_str(), s4.c_str() );
 //	strpf( s1, "dx:%.2f dy:%.2f (Freq:%.2f Hz)", dx, dy, 1.0/dx );
 	mdo.x1 = 460;
@@ -13154,6 +13652,8 @@ else{								//for muliple graphs, one trace, just update req graph
 	}
 
 
+
+/*
 double minx, maxx;
 double miny, maxy;
 
@@ -13165,7 +13665,7 @@ if( fabs( maxy ) >= fabs( miny ) ) extreme_y = maxy;
 else extreme_y = fabs( miny );
 
 if( max_defl_y[ ii ] == 0.0 ) max_defl_y[ ii ] = extreme_y;				//this happens only on the initial (first) draw
-
+*/
 
 
 
@@ -13316,11 +13816,14 @@ for( int i = 0; i < tick; i++ )
 	mdo.clip_top = 0;
 	mdo.clip_bottom = 0;
 
-	mdo.x1 = minx + i * dt - posx;									//v1.16
-	mdo.y1 = miny + (maxy - miny)/2 + (maxy - miny) * 0.003;
+	
+	float fscly_tickx = scale_trc_y[ii][ 0 ];							//v1.22
+
+	mdo.x1 = minx + i * dt - posx;										//v1.16
+	mdo.y1 = miny + (maxy - miny)/2 + (maxy - miny) * 0.003/fscly_tickx;	//v1.22
 
 	mdo.x2 = mdo.x1;
-	mdo.y2 = miny + (maxy - miny)/2 - (maxy - miny) * 0.004;
+	mdo.y2 = miny + (maxy - miny)/2 - (maxy - miny) * 0.004/fscly_tickx;
 
 //printf( "mdo.y2: %f %f\n", mdo.y1, mdo.y2);
 	mdo.r = col_obj_axis[ii].r;
@@ -13357,8 +13860,10 @@ for( int i = 0; i < tick; i++ )
 	mdo.arc2 = 0;
 	mdo.stext = s1;
 
+
+
 	mdo.x1 -= 0;
-	mdo.y1 = miny + (maxy - miny)/2 - (maxy - miny) * 0.025;
+	mdo.y1 = miny + (maxy - miny)/2 - (maxy - miny) * 0.025/fscly_tickx;	//v1.22;
 	mdo.r = col_obj_text[ii].r;
 	mdo.g = col_obj_text[ii].g;
 	mdo.b = col_obj_text[ii].b;
@@ -13404,11 +13909,20 @@ tick = ytick_marks[ii];
 
 bool fixed_axis_y = 1;													//v1.19
 
+
+
+//int vis_wid, vis_hei;	
+//gph[ii]->get_trace_vis_dimensions( 0, vis_wid, vis_hei );
+//float shfty = (maxy - miny)/2.0f  * ((float)shift_trc_y[ ii ][0] / ((float)vis_hei/2.0f ));	//v1.22, make a value from 'shift_trc_y[][]' (which is in pixels), so that it represents how much a trace has be shifted in y sample values,
+
+float shfty = shift_trc_y[ ii ][0]*gph[ii]->trce[0].yunits_perpxl;
+
 if( fixed_axis_y ) dt = (fmaxy/1 - fminy/1 ) / (float)tick;
 else dt = (maxy/scaley - miny/scaley ) / (float)tick;					//NOTE: this never executes
 
 
 
+//printf( "update_fg_user_obj()  fminy %f %f   dt n", fminy, fmaxy );
 
 if(vb)printf( "update_fg_user_obj()4  max_defl_y %f  max_tmp %f  fmaxy %f   dt %f  factor %f\n", max_defl_y[ ii ], max_tmp, fmaxy, dt, factor );
 
@@ -13417,6 +13931,12 @@ fminy = -dt*(tick/2);
 
 if(vb)printf( "update_fg_user_obj()5  max_defl_y %f  fmaxy %f   dt %f  factor %f\n", max_defl_y[ ii ], fmaxy, dt, factor );
 
+
+//double ddx, ddy;
+
+//gph[ii]->get_pixel_position_as_trc_values( 0, 0, 10, ddx, ddy );
+//gph[ii]->get_mouse_position_relative_to_trc_new( 0, ddx, ddy );
+//printf( "update_fg_user_obj() -  ddx %f %f\n", ddx, ddy );
 
 
 for( int i = 0; i <= tick; i++ )
@@ -13432,7 +13952,7 @@ for( int i = 0; i <= tick; i++ )
 
 	mdo.x1 = x_axis_offs + 2;
 	
-	if( fixed_axis_y ) mdo.y1 = fminy/1 + i * dt + 0;
+	if( fixed_axis_y ) mdo.y1 = fminy + i * dt + 0;
 	else mdo.y1 = miny/scaley + i * dt;									//NOTE: this never executes
 
 	mdo.x2 = x_axis_offs - 1;
@@ -13444,19 +13964,32 @@ for( int i = 0; i <= tick; i++ )
 
 	gph[ii]->vdrwobj.push_back( mdo );
 
-double posy;
-gph[ii]->get_posy_relative_to_trace(0, posy );
-
+//double posy;
+//gph[ii]->get_posy_relative_to_trace(0, posy );						
+//posy = shfty;
 	//y-axis text vals
 	string snum, sunits, scombined, sappend_num, sappend_units;
 	sappend_units = "";
 	sappend_num = "";
 
+//	int vis_wid, vis_hei;	
+//	gph[ii]->get_trace_vis_dimensions( 0, vis_wid, vis_hei );
+
+//	float shfty = (maxy - miny)  * ((float)shift_trc_y[ ii ][0] / vis_hei);									//v1.22
+//	float shfty = (maxy - miny)/2  * ((float)shift_trc_y[ ii ][0] / ((float)vis_hei/2 ));									//v1.22
+
+
+
+//printf("fast_mgraph::update_fg_user_obj() - shift_trc_y %f shfty %f\n", shift_trc_y[ ii ][0], shfty );
+
+
+
 	double valy = mdo.y1;												//v1.13
+//	double valy = mdo.y1;										//v1.13
 	if( ( use_logy ) && ( disp_vals_undo_logy ) ) valy = pow(10, valy);
 	valy *= disp_vals_multiplier_y;
 
-	m1.make_engineering_str_exp( snum, sunits, scombined, sig_dig, valy - posy, sappend_num, sappend_units, 1 );
+	m1.make_engineering_str_exp( snum, sunits, scombined, sig_dig, valy - shfty/scle_trc_y, sappend_num, sappend_units, 1 );
 
 	mdo.type = en_dobt_text;
 	mdo.draw_ordering = 1;				//draw before graticle, 0 = before grid,  1 = after graticle but before traces,   2 = after traces
@@ -13474,7 +14007,7 @@ gph[ii]->get_posy_relative_to_trace(0, posy );
 
 	mdo.x1 = 8;
 	if( fixed_axis_y ) mdo.y1 = fminy/1 + i * dt;//- (maxy - miny ) * 0.02;
-	else  mdo.y1 = miny/scaley + i * dt ;								//NOTE: this never executes
+	else  mdo.y1 = miny/scaley + i * dt;								//NOTE: this never executes
 	
 	mdo.r = col_obj_text[ii].r;
 	mdo.g = col_obj_text[ii].g;
@@ -13918,3288 +14451,6 @@ for( int i = 0; i < cnt; i++ )
 
 
 
-
-
-/*
-
-//----------------
-//multiple graphs, 1 trace on each
-void fast_mgraph::plot( int gph_idx, vector<double> vdbl, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-if ( gph_idx >= gph_cnt ) return;
-if ( gph_idx < 0 ) return;
-
-//int border = 5;
-
-int ii = gph_idx;
-
-vtrc_valy1[ ii ] = vdbl;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-mg_col_tag col;
-trace_tag tr1;
-
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-trc_label[ ii ] = trc_label1;
-user_col( col_trc, color_trc[ii] );
-
-//printf("idx = ii: %d\n", ii );
-//getchar();
-
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;				//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vdbl.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vdbl[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ ii ] + shift_trc_y[ ii ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );					//add trace before user obj as user obj's need access to trace mins/maxs
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-//exit(0);
-}
-*/
-
-
-
-/*
-void fast_mgraph::plot( int gph_idx, vector<float> vf, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl;
-
-for( int i = 0; i < vf.size(); i++ )
-	{
-	vdbl.push_back( vf[ i ] );
-	}
-
-plot( gph_idx, vdbl, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plot( int gph_idx, vector<int> vint, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl;
-
-for( int i = 0; i < vint.size(); i++ )
-	{
-	vdbl.push_back( vint[ i ] );
-	}
-
-plot( gph_idx, vdbl, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plot( int gph_idx, double *arr, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl.push_back( arr[ i ] );
-	}
-
-plot( gph_idx, vdbl, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plot( int gph_idx, float *arr, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl.push_back( arr[ i ] );
-	}
-
-plot( gph_idx, vdbl, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-/*
-void fast_mgraph::plot( int gph_idx, int *arr, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl.push_back( arr[ i ] );
-	}
-
-plot( gph_idx, vdbl, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}*/
-//----------------
-
-
-
-
-
-
-
-/*
-
-//----------------
-//multiple graphs, 1 trace on each, x, y supplied and must be same length
-void fast_mgraph::plotxy( int gph_idx, vector<double> vx, vector<double> vy, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-if ( gph_idx >= gph_cnt ) return;
-if ( gph_idx < 0 ) return;
-
-
-if( vy.size() < vx.size() ) back_fill( vx.size(), vy );
-
-//int border = 5;
-
-int ii = gph_idx;
-
-vtrc_valx[ ii ] = vx;
-vtrc_valy1[ ii ] = vy;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-//printf("idx = ii: %d, '%s'\n", ii, trc_label1 );
-//getchar();
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-//user_col( col_trc, col );
-trc_label[ ii ] = trc_label1;
-user_col( col_trc, color_trc[ii] );
-
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = xunits_perpxl[ii]; //-1; 1.0/grat_pixels_x;
-tr1.yunits_perpxl = yunits_perpxl[ii]; //-1; 1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ ii ] + shift_trc_y[ ii ];
-	pnt1.sel = 0;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );					//add trace before user obj as user obj's need access to trace mins/maxs
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-}
-
-
-
-void fast_mgraph::plotxy( int gph_idx, vector<float> vx, vector<float> vy, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-
-if( vy.size() < vx.size() ) back_fill( vx.size(), vy );
-
-vector<double> vdblx, vdbly;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-	vdblx.push_back( vx[ i ] );
-	vdbly.push_back( vy[ i ] );
-	}
-
-plotxy( gph_idx, vdblx, vdbly, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( int gph_idx, vector<int> vx, vector<int> vy, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-
-if( vy.size() < vx.size() ) back_fill( vx.size(), vy );
-
-vector<double> vdblx, vdbly;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-	vdblx.push_back( vx[ i ] );
-	vdbly.push_back( vy[ i ] );
-	}
-
-plotxy( gph_idx, vdblx, vdbly, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( int gph_idx, double *arrx, double *arry, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdblx, vdbly;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdblx.push_back( arrx[ i ] );
-	vdbly.push_back( arry[ i ] );
-	}
-
-plotxy( gph_idx, vdblx, vdbly, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( int gph_idx, float *arrx, float *arry, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdblx, vdbly;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdblx.push_back( arrx[ i ] );
-	vdbly.push_back( arry[ i ] );
-	}
-
-plotxy( gph_idx, vdblx, vdbly, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( int gph_idx, int *arrx, int *arry, int cnt, const char *col_trc, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdblx, vdbly;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdblx.push_back( arrx[ i ] );
-	vdbly.push_back( arry[ i ] );
-	}
-
-plotxy( gph_idx, vdblx, vdbly, col_trc, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-//----------------
-
-
-
-
-
-/*
-//----------------
-
-//one graph, 2 traces
-void fast_mgraph::plot( vector<double> vf1, vector<double> vf2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-string s1;
-mystr m1;
-
-//int border = 5;
-multi_trace = 2;
-
-int ii = 0;
-
-vtrc_valy1[ 0 ] = vf1;
-vtrc_valy2[ 0 ] = vf2;
-
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-//user_col( col_trc1, col );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf1[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf2[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );
-}
-*/
-
-/*
-void fast_mgraph::plot( vector<float> vf1, vector<float> vf2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-	vdbl1.push_back( vf1[ i ] );
-	}
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-	vdbl2.push_back( vf2[ i ] );
-	}
-
-plot( vdbl1, vdbl2, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-
-}
-*/
-
-
-
-
-
-/*
-void fast_mgraph::plot( double *d1, int cnt1, double *d2, int cnt2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( d1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( d2[ i ] );
-	}
-
-plot( vdbl1, vdbl2, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-
-}
-*/
-
-
-
-/*
-void fast_mgraph::plot( float *f1, int cnt1, float *f2, int cnt2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( f1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( f2[ i ] );
-	}
-
-plot( vdbl1, vdbl2, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-
-}
-*/
-
-
-/*
-void fast_mgraph::plot( int *i1, int cnt1, int *i2, int cnt2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( i1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( i2[ i ] );
-	}
-
-plot( vdbl1, vdbl2, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-
-}
-*/
-
-//----------------
-
-
-/*
-//----------------
-
-//one graph, 2 traces, first trace x, y is supplied, 2nd trace only y is supplied and must be same length as first trace
-void fast_mgraph::plotxy( vector<double> vx, vector<double> vy1, vector<double> vy2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-if( vy1.size() < vx.size() ) back_fill( vx.size(), vy1 );
-if( vy2.size() < vx.size() ) back_fill( vx.size(), vy2 );
-
-
-string s1;
-mystr m1;
-
-//int border = 5;
-multi_trace = 2;
-
-int ii = 0;
-
-vtrc_valx[ 0 ] = vx;
-vtrc_valy1[ 0 ] = vy1;
-vtrc_valy2[ 0 ] = vy2;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-	pnt1.x = vx[ i ];
-	pnt1.y = vy1[ i ];
-	
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-//tr1.scaley = 2.0;
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy2[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( vector<float> vfx, vector<float> vfy1, vector<float> vfy2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-if( vfy1.size() < vfx.size() ) back_fill( vfx.size(), vfy1 );
-if( vfy2.size() < vfx.size() ) back_fill( vfx.size(), vfy2 );
-
-for( int i = 0; i < vfx.size(); i++ )
-	{
-	vdbl1.push_back( vfx[ i ] );
-	vdbl2.push_back( vfy1[ i ] );
-	vdbl3.push_back( vfy2[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( vector<int> vix, vector<int> viy1, vector<int> viy2, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-if( viy1.size() < vix.size() ) back_fill( vix.size(), viy1 );
-if( viy2.size() < vix.size() ) back_fill( vix.size(), viy2 );
-
-for( int i = 0; i < vix.size(); i++ )
-	{
-	vdbl1.push_back( vix[ i ] );
-	vdbl2.push_back( viy1[ i ] );
-	vdbl3.push_back( viy2[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( float *arrx, float *arry1, float *arry2, int cnt, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( double *arrx, double *arry1, double *arry2, int cnt, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( int *arrx, int *arry1, int *arry2, int cnt, const char *col_trc1, const char *col_trc2, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	}
-plotxy( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_bkgd, col_axis, col_text, trc_label1, trc_label2 );
-}
-*/
-//----------------
-
-
-
-
-/*
-//----------------
-
-//one graph, 3 traces
-void fast_mgraph::plot( vector<double> vf1, vector<double> vf2, vector<double> vf3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-string s1;
-mystr m1;
-
-multi_trace = 3;
-
-int ii = 0;
-
-vtrc_valy1[ 0 ] = vf1;
-vtrc_valy2[ 0 ] = vf2;
-vtrc_valy3[ 0 ] = vf3;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0; 								//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-
-	pnt1.x = i;
-	pnt1.y = vf1[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf2[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//user_col( col_trc3, col );
-trc_label[ 2 ] = trc_label3;
-user_col( col_trc3, color_trc[2] );
-
-tr1.id = 2;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[2];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf3.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf3[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 2 ] + shift_trc_y[ 2 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 2, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 2, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 2, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );
-}
-*/
-
-
-
-
-/*
-void fast_mgraph::plot( vector<float> vf1, vector<float> vf2, vector<float> vf3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-	vdbl1.push_back( vf1[ i ] );
-	}
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-	vdbl2.push_back( vf2[ i ] );
-	}
-
-for( int i = 0; i < vf3.size(); i++ )
-	{
-	vdbl3.push_back( vf3[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-/*
-void fast_mgraph::plot( double *d1, int cnt1, double *d2, int cnt2, double *d3, int cnt3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( d1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( d2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( d3[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-
-/*
-void fast_mgraph::plot( float *f1, int cnt1, float *f2, int cnt2, float *f3, int cnt3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( f1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( f2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( f3[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-/*
-void fast_mgraph::plot( int *i1, int cnt1, int *i2, int cnt2, int *i3, int cnt3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( i1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( i2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( i3[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-//----------------
-
-
-
-
-
-/*
-//----------------
-
-//one graph, 4 traces
-void fast_mgraph::plot( vector<double> vf1, vector<double> vf2, vector<double> vf3, vector<double> vf4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-string s1;
-mystr m1;
-
-multi_trace = 4;
-
-int ii = 0;
-
-vtrc_valy1[ 0 ] = vf1;
-vtrc_valy2[ 0 ] = vf2;
-vtrc_valy3[ 0 ] = vf3;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0; 								//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf1[ i ];
-	
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf2[ i ];
-	
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//user_col( col_trc3, col );
-trc_label[ 2 ] = trc_label3;
-user_col( col_trc3, color_trc[2] );
-
-tr1.id = 2;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[2];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf3.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = i;
-	pnt1.y = vf3[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 2 ] + shift_trc_y[ 2 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-trc_label[ 3 ] = trc_label4;
-user_col( col_trc3, color_trc[3] );
-
-tr1.id = 3;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[3];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vf3.size(); i++ )
-	{
-
-	pnt1.x = i;
-	pnt1.y = vf4[ i ];
-	
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 3 ] + shift_trc_y[ 3 ];
-	pnt1.sel = 0;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 2, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 3, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 2, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 3, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 2, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 3, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-}
-*/
-
-/*
-void fast_mgraph::plot( vector<float> vf1, vector<float> vf2, vector<float> vf3, vector<float> vf4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < vf1.size(); i++ )
-	{
-	vdbl1.push_back( vf1[ i ] );
-	}
-
-for( int i = 0; i < vf2.size(); i++ )
-	{
-	vdbl2.push_back( vf2[ i ] );
-	}
-
-for( int i = 0; i < vf3.size(); i++ )
-	{
-	vdbl3.push_back( vf3[ i ] );
-	}
-
-for( int i = 0; i < vf4.size(); i++ )
-	{
-	vdbl4.push_back( vf4[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plot( double *d1, int cnt1, double *d2, int cnt2, double *d3, int cnt3, double *d4, int cnt4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4  )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( d1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( d2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( d3[ i ] );
-	}
-
-for( int i = 0; i < cnt4; i++ )
-	{
-	vdbl4.push_back( d4[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plot( float *f1, int cnt1, float *f2, int cnt2, float *f3, int cnt3, float *f4, int cnt4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4  )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( f1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( f2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( f3[ i ] );
-	}
-
-for( int i = 0; i < cnt4; i++ )
-	{
-	vdbl4.push_back( f4[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plot( int *i1, int cnt1, int *i2, int cnt2, int *i3, int cnt3, int *i4, int cnt4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4  )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt1; i++ )
-	{
-	vdbl1.push_back( i1[ i ] );
-	}
-
-for( int i = 0; i < cnt2; i++ )
-	{
-	vdbl2.push_back( i2[ i ] );
-	}
-
-for( int i = 0; i < cnt3; i++ )
-	{
-	vdbl3.push_back( i3[ i ] );
-	}
-
-for( int i = 0; i < cnt4; i++ )
-	{
-	vdbl4.push_back( i4[ i ] );
-	}
-
-plot( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-//----------------
-
-
-
-
-
-
-
-
-/*
-//----------------
-//one graph, 1 trace, x, y required
-void fast_mgraph::plotxy( vector<double> vx, vector<double> vy1, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-
-if( vy1.size() < vx.size() ) back_fill( vx.size(), vy1 );
-
-string s1;
-mystr m1;
-
-multi_trace = 1;
-
-int ii = 0;
-
-vtrc_valx[ 0 ] = vx;
-vtrc_valy1[ 0 ] = vy1;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy1[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( vector<float> vfx, vector<float> vfy1, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-if( vfy1.size() < vfx.size() ) back_fill( vfx.size(), vfy1 );
-
-for( int i = 0; i < vfx.size(); i++ )
-	{
-	vdbl1.push_back( vfx[ i ] );
-	vdbl2.push_back( vfy1[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, col_trc1, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( vector<int> vix, vector<int> viy1, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-if( viy1.size() < vix.size() ) back_fill( vix.size(), viy1 );
-
-for( int i = 0; i < vix.size(); i++ )
-	{
-	vdbl1.push_back( vix[ i ] );
-	vdbl2.push_back( viy1[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, col_trc1, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( float *arrx, float *arry1, int cnt, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, col_trc1, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( double *arrx, double *arry1, int cnt, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, col_trc1, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-
-
-
-
-/*
-void fast_mgraph::plotxy( int *arrx, int *arry1, int cnt, const char *col_trc1, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, col_trc1, col_bkgd, col_axis, col_text, trc_label1 );
-}
-*/
-//----------------
-
-
-
-
-
-
-
-
-
-/*
-//----------------
-
-//one graph, 3 traces, first trace x, y is supplied, 2nd/3rd traces only y is supplied and must be same length as first trace
-void fast_mgraph::plotxy( vector<double> vx, vector<double> vy1, vector<double> vy2, vector<double> vy3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-//printf("fast_mgraph::plotxy( ) - here 001\n" );
-
-if( vy1.size() < vx.size() ) back_fill( vx.size(), vy1 );
-if( vy2.size() < vx.size() ) back_fill( vx.size(), vy2 );
-if( vy3.size() < vx.size() ) back_fill( vx.size(), vy3 );
-
-string s1;
-mystr m1;
-
-multi_trace = 3;
-
-int ii = 0;
-
-vtrc_valx[ 0 ] = vx;
-vtrc_valy1[ 0 ] = vy1;
-vtrc_valy2[ 0 ] = vy2;
-vtrc_valy3[ 0 ] = vy3;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy1[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy2[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//user_col( col_trc3, col );
-trc_label[ 2 ] = trc_label3;
-user_col( col_trc3, color_trc[2] );
-
-tr1.id = 2;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[2];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy3[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 2 ] + shift_trc_y[ 2 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 2, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 2, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 2, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );
-}
-*/
-
-
-
-/*
-void fast_mgraph::plotxy( vector<float> vfx, vector<float> vfy1, vector<float> vfy2, vector<float> vfy3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-if( vfy1.size() < vfx.size() ) back_fill( vfx.size(), vfy1 );
-if( vfy2.size() < vfx.size() ) back_fill( vfx.size(), vfy2 );
-if( vfy3.size() < vfx.size() ) back_fill( vfx.size(), vfy3 );
-
-for( int i = 0; i < vfx.size(); i++ )
-	{
-	vdbl1.push_back( vfx[ i ] );
-	vdbl2.push_back( vfy1[ i ] );
-	vdbl3.push_back( vfy2[ i ] );
-	vdbl4.push_back( vfy3[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( vector<int> vix, vector<int> viy1, vector<int> viy2, vector<int> viy3, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-if( viy1.size() < vix.size() ) back_fill( vix.size(), viy1 );
-if( viy2.size() < vix.size() ) back_fill( vix.size(), viy2 );
-if( viy3.size() < vix.size() ) back_fill( vix.size(), viy3 );
-
-for( int i = 0; i < vix.size(); i++ )
-	{
-	vdbl1.push_back( vix[ i ] );
-	vdbl2.push_back( viy1[ i ] );
-	vdbl3.push_back( viy2[ i ] );
-	vdbl4.push_back( viy3[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( float *arrx, float *arry1, float *arry2, float *arry3, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1,trc_label2, trc_label3 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( double *arrx, double *arry1, double *arry2, double *arry3, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_bkgd, trc_label1, trc_label2, trc_label3 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( int *arrx, int *arry1, int *arry2, int *arry3, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, col_trc1, col_trc2, col_trc3, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3 );
-}
-*/
-//----------------
-
-
-
-
-
-
-
-/*
-//----------------
-
-//one graph, 4 traces, first trace x, y is supplied, 2nd/3rd/4th traces only y is supplied and must be same length as first trace
-void fast_mgraph::plotxy( vector<double> vx, vector<double> vy1, vector<double> vy2, vector<double> vy3, vector<double> vy4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-
-if( vy1.size() < vx.size() ) back_fill( vx.size(), vy1 );
-if( vy2.size() < vx.size() ) back_fill( vx.size(), vy2 );
-if( vy3.size() < vx.size() ) back_fill( vx.size(), vy3 );
-
-string s1;
-mystr m1;
-
-multi_trace = 4;
-
-int ii = 0;
-
-vtrc_valx[ 0 ] = vx;
-vtrc_valy1[ 0 ] = vy1;
-vtrc_valy2[ 0 ] = vy2;
-vtrc_valy3[ 0 ] = vy3;
-
-x_axis_offs = 65;
-
-gph[ii]->clear_traces();
-
-
-mg_col_tag col;
-trace_tag tr1;
-
-user_col( col_axis, col );
-col_obj_axis = col;
-
-user_col( col_text, col );
-col_obj_text = col;
-
-user_col( col_bkgd, col );
-
-gph[ii]->background.r = col.r;
-gph[ii]->background.g = col.g;
-gph[ii]->background.b = col.b;
-
-
-//user_col( col_trc1, col );
-trc_label[ 0 ] = trc_label1;
-user_col( col_trc1, color_trc[0] );
-
-tr1.id = 0;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[0];
-tr1.line_thick = 1;
-tr1.lineplot = 1;
-tr1.line_style = (en_mgraph_line_style) en_mls_solid;
-tr1.border_left = x_axis_offs;
-tr1.border_right = 0;
-tr1.border_top = 10;
-tr1.border_bottom = 10;
-
-tr1.show_as_spectrum = 0;                           //not a spectra plot
-tr1.spectrum_baseline_y = 0;
-
-tr1.b_limit_auto_scale_min_for_y = 0;
-tr1.b_limit_auto_scale_max_for_y = 0;
-
-tr1.xunits_perpxl = -1;//1.0/grat_pixels_x;
-tr1.yunits_perpxl = -1;//1.0/grat_pixels_y;
-
-tr1.posx = 0;//-tr1.border_left + x_axis_offs;
-tr1.posy = 0;
-
-tr1.plot_offsx = 0;                 				//not affected by override: 'use_pos_y', still allows independent trace offsets at pixel level
-tr1.plot_offsy = 0;
-
-tr1.scalex = 1;
-tr1.scaley = 1;
-
-tr1.single_sel_col.r = 255;
-tr1.single_sel_col.g = 0;
-tr1.single_sel_col.b = 255;
-
-tr1.group_sel_trace_col.r = 230;
-tr1.group_sel_trace_col.g = 230;
-tr1.group_sel_trace_col.b = 230;
-
-tr1.group_sel_rect_col.r = 255;
-tr1.group_sel_rect_col.g = 153;
-tr1.group_sel_rect_col.b = 0;
-
-//tr1.sample_rect_hints_double_click = 1;
-//tr1.sample_rect_hints = 1;
-//tr1.sample_rect_hints_col.r = 150;
-//tr1.sample_rect_hints_col.g = 120;
-//tr1.sample_rect_hints_col.b = 150;
-//tr1.sample_rect_hints_distancex = 12;						//helps stop over hinting on x-axis
-//tr1.sample_rect_hints_distancey = 0;						//disable over hinting test/clearing for y-axis 
-
-tr1.clip_left = tr1.border_left;
-tr1.clip_right = tr1.border_right;
-tr1.clip_top = tr1.border_top;
-tr1.clip_bottom = tr1.border_bottom;
-
-
-tr1.use_pos_y = -1;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = -1;			//if not -1, use this trace's id as a reference for this val
-
-tr1.sample_rect_hints_double_click = sample_rect_hints_double_click;//v1.13
-tr1.sample_rect_hints = sample_rect_hints;							//v1.13
-tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
-tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
-tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
-
-pnt_tag pnt1;
-
-double minx, miny, maxx, maxy;
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy1[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 0 ] + shift_trc_y[ 0 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-//user_col( col_trc2, col );
-trc_label[ 1 ] = trc_label2;
-user_col( col_trc2, color_trc[1] );
-
-tr1.id = 1;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[1];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy2[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-//printf("y: %f\n", vf[ i ] );
-	pnt1.y = pnt1.y * scale_trc_y[ 1 ] + shift_trc_y[ 1 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//user_col( col_trc3, col );
-trc_label[ 2 ] = trc_label3;
-user_col( col_trc3, color_trc[2] );
-
-tr1.id = 2;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[2];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-//printf("y: %f\n", vf[ i ] );
-	pnt1.x = vx[ i ];
-	pnt1.y = vy3[ i ];
-
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 2 ] + shift_trc_y[ 2 ];
-	pnt1.sel = 0;
-//if( ( i >= 5000 ) & ( i <= 20000) ) pnt1.sel = 1;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-
-
-
-
-//user_col( col_trc3, col );
-trc_label[ 3 ] = trc_label3;
-user_col( col_trc4, color_trc[3] );
-
-tr1.id = 3;                      //identify which trace this is, helps when traces are push_back'd in unknown order
-tr1.vis = 1;
-tr1.col = color_trc[3];
-
-tr1.use_pos_y = 0;				//if not -1, use this trace's id as a reference for this val
-tr1.use_scale_y = 0;			//if not -1, use this trace's id as a reference for this val
-
-tr1.pnt.clear();
-
-minx = miny = maxx = maxy = 0;
-
-for( int i = 0; i < vx.size(); i++ )
-	{
-
-	pnt1.x = vx[ i ];
-	pnt1.y = vy4[ i ];
-	
-	if( use_logx )
-		{
-		pnt1.x = log10( pnt1.x );									//v1.13	
-		}
-
-
-	if( use_logy )
-		{
-		pnt1.y = log10( pnt1.y );									//v1.13	
-		}
-
-	pnt1.y = pnt1.y * scale_trc_y[ 3 ] + shift_trc_y[ 3 ];
-	pnt1.sel = 0;
-
-	tr1.pnt.push_back( pnt1 );
-
-	if( i == 0 )
-		{
-		minx = maxx = pnt1.x;
-		miny = maxy = pnt1.y;
-		}
-
-	if( pnt1.x < minx ) minx = pnt1.x;
-	if( pnt1.y < miny ) miny = pnt1.y;
-
-	if( pnt1.x > maxx ) maxx = pnt1.x;
-	if( pnt1.y > maxy ) maxy = pnt1.y;
-	}
-
-
-gph[ii]->add_trace( tr1 );
-
-
-
-
-//non trace specific cb
-gph[ii]->set_left_click_anywhere_cb( cb_fast_gph_left_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_right_click_anywhere_cb( cb_fast_gph_right_click_anywhere, (void*)gph[ii] );
-gph[ii]->set_left_click_release_cb( cb_fast_gph_left_click_release, (void*)gph[ii] );
-gph[ii]->set_mouseenter_cb( cb_fast_gph_mouseenter, (void*)gph[ii] );
-gph[ii]->set_mouseleave_cb( cb_fast_gph_mouseleave, (void*)gph[ii] );
-
-
-//non specific cb
-gph[ii]->set_left_click_cb( 0, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 1, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 2, cb_fast_gph_left_click, (void*)gph[ii] );
-gph[ii]->set_left_click_cb( 3, cb_fast_gph_left_click, (void*)gph[ii] );
-
-gph[ii]->set_middle_click_cb( 0, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 1, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 2, cb_fast_gph_middle_click, (void*)gph[ii] );
-gph[ii]->set_middle_click_cb( 3, cb_fast_gph_middle_click, (void*)gph[ii] );
-
-gph[ii]->set_right_click_cb( 0, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 1, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 2, cb_fast_gph_right_click, (void*)gph[ii] );
-gph[ii]->set_right_click_cb( 3, cb_fast_gph_right_click, (void*)gph[ii] );
-
-//gph->set_right_click_cb( trace_idx,  cb_fast_gph_right_click, this );
-gph[ii]->set_keydown_cb( 0, cb_fast_gph_keydown, (void*)gph[ii] );
-gph[ii]->set_keyup_cb( 0, cb_fast_gph_keyup, (void*)gph[ii] );
-gph[ii]->set_mousewheel_cb( 0, cb_fast_gph_mousewheel, (void*)gph[ii] );
-gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
-
-update_fg_user_obj( ii );
-
-//gph[ii]->render( 0 );}
-}
-*/
-
-
-
-
-/*
-void fast_mgraph::plotxy( vector<float> vfx, vector<float> vfy1, vector<float> vfy2, vector<float> vfy3, vector<float> vfy4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4, vdbl5;
-
-if( vfy1.size() < vfx.size() ) back_fill( vfx.size(), vfy1 );
-if( vfy2.size() < vfx.size() ) back_fill( vfx.size(), vfy2 );
-if( vfy3.size() < vfx.size() ) back_fill( vfx.size(), vfy3 );
-if( vfy4.size() < vfx.size() ) back_fill( vfx.size(), vfy4 );
-
-for( int i = 0; i < vfx.size(); i++ )
-	{
-	vdbl1.push_back( vfx[ i ] );
-	vdbl2.push_back( vfy1[ i ] );
-	vdbl3.push_back( vfy2[ i ] );
-	vdbl4.push_back( vfy3[ i ] );
-	vdbl5.push_back( vfy4[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, vdbl5, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( vector<int> vix, vector<int> viy1, vector<int> viy2, vector<int> viy3, vector<int> viy4, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4, vdbl5;
-
-if( viy1.size() < vix.size() ) back_fill( vix.size(), viy1 );
-if( viy2.size() < vix.size() ) back_fill( vix.size(), viy2 );
-if( viy3.size() < vix.size() ) back_fill( vix.size(), viy3 );
-if( viy4.size() < vix.size() ) back_fill( vix.size(), viy4 );
-
-for( int i = 0; i < vix.size(); i++ )
-	{
-	vdbl1.push_back( vix[ i ] );
-	vdbl2.push_back( viy1[ i ] );
-	vdbl3.push_back( viy2[ i ] );
-	vdbl4.push_back( viy3[ i ] );
-	vdbl5.push_back( viy4[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, vdbl5, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( float *arrx, float *arry1, float *arry2, float *arry3, float *arry4, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4, vdbl5;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	vdbl5.push_back( arry4[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, vdbl5, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1,trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( double *arrx, double *arry1, double *arry2, double *arry3, double *arry4, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4, vdbl5;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	vdbl5.push_back( arry4[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, vdbl5, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-
-
-/*
-void fast_mgraph::plotxy( int *arrx, int *arry1, int *arry2, int *arry3, int *arry4, int cnt, const char *col_trc1, const char *col_trc2, const char *col_trc3, const char *col_trc4, const char *col_bkgd, const char *col_axis, const char *col_text, const char *trc_label1, const char *trc_label2, const char *trc_label3, const char *trc_label4 )
-{
-vector<double> vdbl1, vdbl2, vdbl3, vdbl4, vdbl5;
-
-for( int i = 0; i < cnt; i++ )
-	{
-	vdbl1.push_back( arrx[ i ] );
-	vdbl2.push_back( arry1[ i ] );
-	vdbl3.push_back( arry2[ i ] );
-	vdbl4.push_back( arry3[ i ] );
-	vdbl5.push_back( arry4[ i ] );
-	}
-
-plotxy( vdbl1, vdbl2, vdbl3, vdbl4, vdbl5, col_trc1, col_trc2, col_trc3, col_trc4, col_bkgd, col_axis, col_text, trc_label1, trc_label2, trc_label3, trc_label4 );
-}
-*/
-//----------------
 
 
 
@@ -17925,6 +15176,7 @@ trc_label_multi_4[gph_idx] = ss;
 //multiple graphs
 void fast_mgraph::plotxy_vfloat( int gph_idx, vector<float> &vx, vector<float> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 if( gph_idx < 0 ) return;
 if( gph_idx >= gph_cnt ) return;
 
@@ -17960,6 +15212,7 @@ plot_grph_internal( gph_idx );
 //multiple graphs, (vector x not suppied)
 void fast_mgraph::plot_vfloat( int gph_idx, vector<float> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 if( gph_idx < 0 ) return;
 if( gph_idx >= gph_cnt ) return;
 
@@ -17992,6 +15245,7 @@ plot_grph_internal( gph_idx );
 //multiple graphs
 void fast_mgraph::plotxy_vdouble( int gph_idx, vector<double> &vx, vector<double> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 if( gph_idx < 0 ) return;
 if( gph_idx >= gph_cnt ) return;
 
@@ -18028,12 +15282,15 @@ plot_grph_internal( gph_idx );
 //multiple graphs, (vector x not suppied)
 void fast_mgraph::plot_vdouble( int gph_idx, vector<double> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
+
 if( gph_idx < 0 ) return;
 if( gph_idx >= gph_cnt ) return;
 
 multi_trace = 0;
 
 b_x_axis_vector_supplied[gph_idx] = 0;
+
 
 vtrc_valx[ gph_idx ].clear();
 vtrc_valy1[ gph_idx ].clear();
@@ -18059,6 +15316,7 @@ plot_grph_internal( gph_idx );
 //one graph, single trace (vector x not suppied)
 void fast_mgraph::plot_vfloat_1( vector<float> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 1;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18081,9 +15339,16 @@ plot_grph_internal( -1 );
 
 
 
+
+
+
+
+
+
 //one graph, 2 traces (vector x not suppied)
 void fast_mgraph::plot_vfloat_2( vector<float> &vy1, vector<float> &vy2 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 2;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18110,9 +15375,15 @@ plot_grph_internal( -1 );
 
 
 
+
+
+
+
+
 //one graph, 2 traces (vector x not suppied)
 void fast_mgraph::plot_vfloat_3( vector<float> &vy1, vector<float> &vy2, vector<float> &vy3 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 3;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18146,6 +15417,7 @@ plot_grph_internal( -1 );
 //one graph, 3 traces (vector x not suppied)
 void fast_mgraph::plot_vfloat_4( vector<float> &vy1, vector<float> &vy2, vector<float> &vy3, vector<float> &vy4 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 4;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18186,6 +15458,7 @@ plot_grph_internal( -1 );
 //one graph, single trace (vector x not suppied)
 void fast_mgraph::plot_vdouble_1( vector<double> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 1;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18212,6 +15485,7 @@ plot_grph_internal( -1 );
 //one graph, 2 traces (vector x not suppied)
 void fast_mgraph::plot_vdouble_2( vector<double> &vy1, vector<double> &vy2 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 2;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18241,6 +15515,7 @@ plot_grph_internal( -1 );
 //one graph, 2 traces (vector x not suppied)
 void fast_mgraph::plot_vdouble_3( vector<double> &vy1, vector<double> &vy2, vector<double> &vy3 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 3;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18274,6 +15549,7 @@ plot_grph_internal( -1 );
 //one graph, 3 traces (vector x not suppied)
 void fast_mgraph::plot_vdouble_4( vector<double> &vy1, vector<double> &vy2, vector<double> &vy3, vector<double> &vy4 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 4;
 
 b_x_axis_vector_supplied[0] = 0;
@@ -18313,6 +15589,7 @@ plot_grph_internal( -1 );
 //one graph, single trace
 void fast_mgraph::plotxy_vfloat_1( vector<float> &vx, vector<float> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 1;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18339,6 +15616,7 @@ plot_grph_internal( -1 );
 //one graph, 2 traces
 void fast_mgraph::plotxy_vfloat_2( vector<float> &vx, vector<float> &vy1, vector<float> &vy2 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 2;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18369,6 +15647,7 @@ plot_grph_internal( -1 );
 //one graph, 3 traces
 void fast_mgraph::plotxy_vfloat_3( vector<float> &vx, vector<float> &vy1, vector<float> &vy2, vector<float> &vy3 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 3;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18401,6 +15680,7 @@ plot_grph_internal( -1 );
 //one graph, 4 traces
 void fast_mgraph::plotxy_vfloat_4( vector<float> &vx, vector<float> &vy1, vector<float> &vy2, vector<float> &vy3, vector<float> &vy4 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 4;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18440,6 +15720,7 @@ plot_grph_internal( -1 );
 //one graph, single trace
 void fast_mgraph::plotxy_vdouble_1( vector<double> &vx, vector<double> &vy1 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 1;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18462,6 +15743,7 @@ plot_grph_internal( -1 );
 //one graph, 2 traces, first trace x, y is supplied, for 2nd trace only y is supplied and must be same length as first trace
 void fast_mgraph::plotxy_vdouble_2( vector<double> &vx, vector<double> &vy1, vector<double> &vy2 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 2;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18488,6 +15770,7 @@ plot_grph_internal( -1 );
 //one graph, 3 traces, first trace x, y is supplied, for 2nd/3rd traces only y is supplied and must be same length as first trace
 void fast_mgraph::plotxy_vdouble_3( vector<double> &vx, vector<double> &vy1, vector<double> &vy2, vector<double> &vy3 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 3;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18510,6 +15793,7 @@ plot_grph_internal( -1 );
 //one graph, 4 traces, first trace x, y is supplied, for 2nd/3rd/4th traces only y is supplied and must be same length as first trace
 void fast_mgraph::plotxy_vdouble_4( vector<double> &vx, vector<double> &vy1, vector<double> &vy2, vector<double> &vy3, vector<double> &vy4 )
 {
+if( plot_updating_state == 0 ) return;
 multi_trace = 4;
 
 b_x_axis_vector_supplied[0] = 1;
@@ -18537,6 +15821,8 @@ plot_grph_internal( -1 );
 //multiple graphs with 1 trace only, OR, single graph with up to 4 traces
 void fast_mgraph::plot_grph_internal( int grph_idx )
 {
+	
+
 int ii = 0;
 
 if( grph_idx >= 0 )		//multiple graphs?
@@ -18545,10 +15831,110 @@ if( grph_idx >= 0 )		//multiple graphs?
 	}
 
 
-//if( vy1.size() < vx.size() ) back_fill( vx.size(), vy1 );
-//if( vy2.size() < vx.size() ) back_fill( vx.size(), vy2 );
-//if( vy3.size() < vx.size() ) back_fill( vx.size(), vy3 );
-//if( vy4.size() < vx.size() ) back_fill( vx.size(), vy4 );
+
+
+
+
+
+//---- record recent plots histories ----
+if( ( b_prev_plot_recording ) && ( plot_updating_state == 1 ) )
+	{
+	if( prev_plot_rec_idx == 0 )
+		{
+		vtrc_recx1[0] = vtrc_valx[ii];	
+		vtrc_recy1[0] = vtrc_valy1[ii];	
+		vtrc_recy2[0] = vtrc_valy2[ii];	
+		vtrc_recy3[0] = vtrc_valy3[ii];	
+		vtrc_recy4[0] = vtrc_valy4[ii];	
+		}
+
+	if( prev_plot_rec_idx == 1 )
+		{
+		vtrc_recx1[1] = vtrc_valx[ii];	
+		vtrc_recy1[1] = vtrc_valy1[ii];	
+		vtrc_recy2[1] = vtrc_valy2[ii];	
+		vtrc_recy3[1] = vtrc_valy3[ii];	
+		vtrc_recy4[1] = vtrc_valy4[ii];	
+		}
+
+
+	if( prev_plot_rec_idx == 2 )
+		{
+		vtrc_recx1[2] = vtrc_valx[ii];	
+		vtrc_recy1[2] = vtrc_valy1[ii];	
+		vtrc_recy2[2] = vtrc_valy2[ii];	
+		vtrc_recy3[2] = vtrc_valy3[ii];	
+		vtrc_recy4[2] = vtrc_valy4[ii];	
+		}
+
+	if( prev_plot_rec_idx == 3 )
+		{
+		vtrc_recx1[3] = vtrc_valx[ii];	
+		vtrc_recy1[3] = vtrc_valy1[ii];	
+		vtrc_recy2[3] = vtrc_valy2[ii];	
+		vtrc_recy3[3] = vtrc_valy3[ii];	
+		vtrc_recy4[3] = vtrc_valy4[ii];	
+		}
+
+//printf( "plot_grph_internal() -  recorded in prev_plot_rec_idx %d\n", prev_plot_rec_idx );
+	prev_plot_rec_idx++;
+	if( prev_plot_rec_idx >= cn_prev_plot_rec_max ) prev_plot_rec_idx = 0;
+
+	}
+//----
+
+
+//---- recall recent plot history ----
+if( plot_updating_state == 2 )
+	{
+	int show_idx = 0;
+	
+	if( prev_plot_show_choice == 0 )									//last plot?
+		{		
+		show_idx = prev_plot_rec_idx - 1;								//one behind, which is the current plot gathered just above
+		if( show_idx < 0 ) show_idx += cn_prev_plot_rec_max;
+		}
+
+	if( prev_plot_show_choice == 1 )									//2nd last plot?
+		{		
+		show_idx = prev_plot_rec_idx - 2;								//one behind, which is the current plot gathered just above
+		if( show_idx < 0 ) show_idx += cn_prev_plot_rec_max;
+		}
+
+	if( prev_plot_show_choice == 2 )									//2nd last plot?
+		{		
+		show_idx = prev_plot_rec_idx - 3;								//one behind, which is the current plot gathered just above
+		if( show_idx < 0 ) show_idx += cn_prev_plot_rec_max;
+		}
+
+	if( prev_plot_show_choice == 3 )									//2nd last plot?
+		{		
+		show_idx = prev_plot_rec_idx - 4;								//one behind, which is the current plot gathered just above
+		if( show_idx < 0 ) show_idx += cn_prev_plot_rec_max;
+		}
+
+//printf( "plot_grph_internal() -  prev_plot_rec_idx %d   show_idx %d\n", prev_plot_rec_idx, show_idx );
+
+	vtrc_valx[ii] = vtrc_recx1[show_idx];
+	vtrc_valy1[ii] = vtrc_recy1[show_idx];
+	vtrc_valy2[ii] = vtrc_recy2[show_idx];
+	vtrc_valy3[ii] = vtrc_recy3[show_idx];
+	vtrc_valy4[ii] = vtrc_recy4[show_idx];
+	}
+//----
+
+
+
+//if (!b_plot_allow_updating) return;
+
+
+
+
+
+
+
+
+
 
 string s1;
 mystr m1;
@@ -18739,11 +16125,19 @@ tr1.sample_rect_hints_col = sample_rect_hints_col;					//v1.13
 tr1.sample_rect_hints_distancex = sample_rect_hints_distancex;		//v1.13
 tr1.sample_rect_hints_distancey = sample_rect_hints_distancey;		//v1.13
 
+tr1.sample_rect_flicker = 0;										//v1.22
+
+
 pnt_tag pnt1;
 
 double minx, miny, maxx, maxy;
 
 minx = miny = maxx = maxy = 0;
+
+
+
+
+
 
 //trace1 [0]
 for( int i = 0; i < vtrc_valx[ii].size(); i++ )
@@ -18752,6 +16146,8 @@ for( int i = 0; i < vtrc_valx[ii].size(); i++ )
 
 	pnt1.x = vtrc_valx[ii][ i ];
 	pnt1.y = vtrc_valy1[ii][ i ];
+
+
 
 	if( use_logx )
 		{
@@ -18910,7 +16306,6 @@ if( multi_trace >= 3 )
 
 
 	gph[ii]->add_trace( tr1 );
-
 	}
 
 
@@ -19012,7 +16407,7 @@ gph[ii]->set_mousemove_cb( 0, cb_fast_gph_mousemove, (void*)gph[ii] );
 
 
 
-int idx = last_sel0_idx[ 0 ];
+int idx = last_sel0_idx[ ii ];											//v1.22
 
 if( idx < 0 ) idx = 0;
 gph[ii]->set_selected_sample( last_sel_trc, idx, 0 );					//trigger: left_click_anywhere_cb_p_callback
@@ -19066,6 +16461,26 @@ void fast_mgraph::set_selected_sample( int trc, int sel_sample_idx )
 gph[0]->set_selected_sample( trc, sel_sample_idx, 0 );
 }
 
+
+
+
+
+
+void fast_mgraph::select_first_sample_on_trc0_if_nothing_is_selected()
+{
+mgraph *o = gph[0];
+
+
+int samp_idx;
+int trc = o->get_selected_trace_and_sample_indexes( samp_idx );
+
+last_sel_trc = 0;
+
+if( trc == -1 )
+	{
+	set_selected_sample( last_sel_trc, 0, 0 );
+	}
+}
 
 
 //-------------------------------------------------------------------------------

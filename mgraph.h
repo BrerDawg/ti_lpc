@@ -18,11 +18,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 //mgraph.h
-//v1.08 mgraph	 	21-dec-2017
-//v1.05 surface3d 	06-jan-2018			//see also below  'to avoid windows error dlg: fl_line_style(): Could not create GDI pen object'
-//v1.17 mgraph and fast_graph
-//v1.18 mgraph
-//v1.19 fast_graph
+//v1.08 	mgraph	 	21-dec-2017
+//v1.05 	surface3d 	06-jan-2018			//see also below  'to avoid windows error dlg: fl_line_style(): Could not create GDI pen object'
+//v1.17 	mgraph and fast_graph
+//v1.18 	mgraph
+//v1.19 	fast_graph
+//v1.20 		surface3d
+//v1.22 	fast_graph/mgraph
 
 #ifndef mgraph_h
 #define mgraph_h
@@ -107,6 +109,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 using namespace std;
 
+
+#define cn_mgraph_trace_max 64
+#define cn_prev_plot_rec_max 4											//max num of previous plot histories to record, see 'prev_plot_rec_idx'
 
 
 #define cn_surfplot_deg2rad M_PI / 180.0
@@ -637,7 +642,10 @@ vector<bool>vrect_hints_sel;				//used JUST in draw(), [NOT for user], for: 'pnt
 int sample_rect_hints_distancex;			//helps stop over hinting if x plot distances are too close, e.g: if set to 15, then when rects are less than 15 pixels apart (caused by zooming out) the hinting is turned off.
 int sample_rect_hints_distancey;			//same as above, NOTE: if the graph is displaying y amplitudes, and you zooming into to a point on of the trace where only flat horizotal line is visible then
 											//enabling 'show_sample_rect_hints_distancey' will ERRONEOUSLY clear the rectangles even though they are far apart x-wise
-	
+
+
+bool sample_rect_flicker;					//momentarily flickers sample rectangle hinting when mouse is moved
+
 //------------------------------------------------------------------------------------
 
 
@@ -807,7 +815,7 @@ int woffy;
 int sizex;
 int sizey;
 int mousex, mousey;
-bool double_click_left;
+int double_click_left;
 bool inside_control;
 
 int idx_maxx;
@@ -880,6 +888,7 @@ bool right_button;
 bool middle_button;
 int b_invert_wheel;
 int mousewheel;
+bool sample_rect_showing[cn_mgraph_trace_max];							//will toggle if user double clicks
 
 vector<trace_tag>trce;
 int rect_size;
@@ -964,6 +973,8 @@ double last_nomalised_mousex;	//holds pos vals covering the graticule (the borde
 								//(left)-1.0 --> 0.0 --> +1.0 (right)
 double last_nomalised_mousey;	//(botm)-1.0 --> 0.0 --> +1.0 (top)
 
+int drw_cnt;
+int mousemove_cnt;
 
 
 public:
@@ -1084,6 +1095,8 @@ bool get_trace_to_plot_factors( int trc, double &trace_scalex, double &d_midx, d
 void resize( int xx, int yy, int ww, int hh );
 void get_trace_midxy( int idx, double &midx, double &midy );
 bool get_plot_offsy( int trc, int &val );
+void get_mouse( int &mx, int &my );
+bool get_pixel_position_as_trc_values( int trc, int px, int py, double &valx, double &valy );
 
 
 private:
@@ -1181,8 +1194,10 @@ int x_axis_offs;
 int left_hov_idx;
 float scale_change;
 bool keya[ cn_fast_mgraph_cnt_max ];
+bool keyf[ cn_fast_mgraph_cnt_max ];
 bool keyy[ cn_fast_mgraph_cnt_max ];
 bool keym[ cn_fast_mgraph_cnt_max ];
+bool keys[ cn_fast_mgraph_cnt_max ];
 bool keyshift[ cn_fast_mgraph_cnt_max ];
 int sel_idx1[ cn_fast_mgraph_cnt_max ];
 int sel_idx2[ cn_fast_mgraph_cnt_max ];
@@ -1191,13 +1206,20 @@ vector<double> vtrc_valy1[ cn_fast_mgraph_cnt_max ];		//cache vectors to allow i
 vector<double> vtrc_valy2[ cn_fast_mgraph_cnt_max ];
 vector<double> vtrc_valy3[ cn_fast_mgraph_cnt_max ];
 vector<double> vtrc_valy4[ cn_fast_mgraph_cnt_max ];
+
+vector<double> vtrc_recx1[ cn_prev_plot_rec_max ];			//holds a recorded hist of recent plots, see 'prev_plot_show_choice'
+vector<double> vtrc_recy1[ cn_prev_plot_rec_max ];
+vector<double> vtrc_recy2[ cn_prev_plot_rec_max ];
+vector<double> vtrc_recy3[ cn_prev_plot_rec_max ];
+vector<double> vtrc_recy4[ cn_prev_plot_rec_max ];
+
 string trc_label[ cn_fast_mgraph_cnt_max ];					//if user wants to label a trace using the trace's colour key,
 mg_col_tag color_trc[ cn_fast_mgraph_cnt_max ];				//also used for trc_label
 mg_col_tag col_hover_text[cn_fast_mgraph_cnt_max];				//used for hover text colour
 
 double scale_x;
 double scale_trc_y[ cn_fast_mgraph_cnt_max ][cn_fast_mgraph_trc_cnt_max];
-double max_defl_y[ cn_fast_mgraph_cnt_max ];					//value that should be shown as maximum y deflection, user adj via 'm' key and mousewheel
+double max_defl_y[ cn_fast_mgraph_cnt_max ];					//value that should be shown as maximum y deflection, modifies 'yunits_perpxl[]' in 'update_fg_user_obj()', user adj via 'm' key and mousewheel
 double shift_trc_y[ cn_fast_mgraph_cnt_max ][cn_fast_mgraph_trc_cnt_max];
 float scale_change_h;										//global/static var
 
@@ -1244,10 +1266,18 @@ void (*right_click_cb_p )( void *mgrap, void *args );
 void *right_click_cb_args;
 
 int last_sel_trc;
-int last_sel0_idx[ cn_fast_mgraph_cnt_max ], last_sel1_idx[ cn_fast_mgraph_cnt_max ];		//actually only ever use index: [0] for delta calcs
+int last_sel0_idx[ cn_fast_mgraph_cnt_max ], last_sel1_idx[ cn_fast_mgraph_cnt_max ];
 double last_sel0_x[ cn_fast_mgraph_cnt_max ], last_sel1_x[ cn_fast_mgraph_cnt_max ];
 double last_sel0_y[ cn_fast_mgraph_cnt_max ], last_sel1_y[ cn_fast_mgraph_cnt_max ];
 
+bool b_bring_window_to_front;
+
+
+
+int plot_updating_state;												//0: paused, 1: continuous, 2: recalling a prev recorded plot, see 'prev_plot_show_idx'
+bool b_prev_plot_recording;												//will be slow if plots have many samples
+int prev_plot_rec_idx;													//this is the index of the currently recording plot
+int prev_plot_show_choice;												//0 is last plot, 1 is 2nd last plot, 2 is 3rd last plot, etc
 
 private:
 
@@ -1348,7 +1378,8 @@ void plotxy_vdouble_3( vector<double> &vx, vector<double> &vy1, vector<double> &
 void plotxy_vdouble_4( vector<double> &vx, vector<double> &vy1, vector<double> &vy2, vector<double> &vy3, vector<double> &vy4 );
 
 void plot_grph_internal( int grph_idx );
-
+void select_first_sample_on_trc0_if_nothing_is_selected();
+void fit_plot( int grph_idx );
 
 
 /*

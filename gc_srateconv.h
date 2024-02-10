@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2019 BrerDawg
+Copyright (C) 2023 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 //gc_srateconv.h
-//v1.04
+//v1.08
 
 #ifndef gc_srateconv_h
 #define gc_srateconv_h
@@ -37,9 +37,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 using namespace std;
 
+
+namespace gc_srateconv_code
+	{
+
+
 double qdss_resample( double x, double *buf, unsigned int bufsz, double fmax, double fsr, int wnwdth );
 float qdss_resample_float( float x, float *buf, unsigned int bufsz, double fmax, double fsr, int wnwdth );
 float qdss_resample_float_complete( float x, float *buf, unsigned int bufsz, float fmax, float fsrate, int wnwdth );
+double qdss_resample_double_continuous( double xin, double *buf, unsigned int bufsz, double fmax, double fsrate, int wnwdth, double *head_bf );
+float qdss_resample_float_continuous( float xin, float *buf, unsigned int bufsz, float fmax, float fsrate, int wnwdth, float *head_bf );
 
 bool test_qdss_resampl();
 
@@ -54,6 +61,12 @@ float srconv_tbl_interp_fir_float( uint64_t pos, int tbl_idx, float *sinc_tbl, i
 void test_srconv_tbl();
 
 
+bool qdss_resample_float_vector( int output_count, unsigned int srate_in, float fmax, int wnwdth, vector<float>vin, vector<float>&vout );
+bool farrow_resample_float_vector( int output_count, vector<float>vin, vector<float>&vout );
+bool farrow_resample_double_vector( int output_count, vector<double>vin, vector<double>&vout );
+
+
+	}	//namespace gc_srateconv_code
 
 
 
