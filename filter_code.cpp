@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2018 BrerDawg
+Copyright (C) 2019 BrerDawg
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -19,17 +19,26 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //filter_code.cpp
 
 //v1.01		01-sep-2018
+//v1.02		07-nov-2020													//changed 'twopi' to a constant, commented out some iir code
+//v1.03		09-oct-2022		//added function: 'iir_process(..)' which is similar to: 'filter_iir_2nd_order(..)' and 'filter_iir_2nd_order_2ch(..)'
+							//added function prototypes to: 'filter_code.h' ---> 'bool create_iir_filter_from_coeffs( st_iir &iir, vector<double> &vcoeff );'
+							//added function prototypes to: 'filter_code.h' ---> 'void iir_delete_filter( st_iir &iir );'  and  'void iir_init( st_iir &iir );'
+							//added extra filter types to 'en_filter_window_type_tag' and 'filter_fir_windowed()':  'fwt_lanczos1', 'fwt_lanczos1_5', 'fwt_lanczos2', 'fwt_lanczos3'
+							//added 'filter_fir_sinc(..)'
 
+//v1.04		22-jul-2023		//added namespace 'filter_code::'				
+//v1.05		18-sep-2023		//added 'create_filter_iir_using_q()'
 
 #include "filter_code.h"
 
 
+namespace filter_code
+	{
+
+float iir2nd_coeffs[5];													//second order iir
 
 
-extern double pi;
-extern double twopi;
-
-extern void cslpf( const char *fmt,... );
+#define twopi (2.0*M_PI)
 
 
 
@@ -101,6 +110,13 @@ return 1;
 
 
 
+
+
+
+
+
+
+
 //note a0 is not used (it would be one), the other coeffs should be divided by the a0 you calc'd
 // -- X --> add ------->------+-----> b0 ----> add --- Y ----> 
 //           ^                |                 ^
@@ -121,6 +137,7 @@ return 1;
 //           |<....-a2 <...  add ....> b2 ....> |
 
 
+//NOTE this is SIMILAR to 'iir_process()'
 
 //2nd order direct form 2 iir filter
 
@@ -162,6 +179,250 @@ for ( int i = 0; i < viq.size(); i++ )					//for every sample
 
 
 
+
+
+
+void filter_iir_2nd_order( float &fsignal, st_iir_2nd_order_tag &of )
+{
+																		//a1 = coeff[0]
+																		//a1 = coeff[1]
+																		//b0 = coeff[2]
+																		//b1 = coeff[3]
+																		//b2 = coeff[4]
+
+
+float sum_rev = fsignal - of.coeff[0] * of.delay0[0] - of.coeff[1] * of.delay0[1];
+
+float sum_fwd = sum_rev * of.coeff[2] + of.coeff[3] * of.delay0[0] + of.coeff[4] * of.delay0[1];
+
+fsignal = sum_fwd;
+
+of.delay0[1] = of.delay0[0];
+of.delay0[0] = sum_rev;
+}
+
+
+
+
+
+void filter_iir_2nd_order_2ch( float &fsig0, float &fsig1, st_iir_2nd_order_tag &of )
+{
+																		//a1 = coeff[0]
+																		//a1 = coeff[1]
+																		//b0 = coeff[2]
+																		//b1 = coeff[3]
+																		//b2 = coeff[4]
+
+
+float sum_rev0 = fsig0 - of.coeff[0] * of.delay0[0] - of.coeff[1] * of.delay0[1];
+float sum_rev1 = fsig1 - of.coeff[0] * of.delay1[0] - of.coeff[1] * of.delay1[1];						//ch1
+
+float sum_fwd0 = sum_rev0 * of.coeff[2] + of.coeff[3] * of.delay0[0] + of.coeff[4] * of.delay0[1];
+float sum_fwd1 = sum_rev1 * of.coeff[2] + of.coeff[3] * of.delay1[0] + of.coeff[4] * of.delay1[1];		//ch1
+
+fsig0 = sum_fwd0;
+fsig1 = sum_fwd1;														//ch1
+
+of.delay0[1] = of.delay0[0];
+of.delay0[0] = sum_rev0;
+
+of.delay1[1] = of.delay1[0];
+of.delay1[0] = sum_rev1;												//ch1
+}
+
+
+
+
+
+
+
+
+
+
+
+
+//----------------------------------------------------------------------
+void iir_init( st_iir &iir )
+{
+if( iir.created == 0 ) return;
+
+iir.dly0 = 0;
+iir.dly1 = 0;
+}
+
+
+
+
+
+
+
+
+//delete filter
+void iir_delete_filter( st_iir &iir )
+{
+if ( iir.created == 0 ) return;
+
+iir.created = 0;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//note a0 is not used (it would be one), the other coeffs should be divided by the a0 you calc'd
+// -- X --> add ------->------+-----> b0 ----> add --- Y ----> 
+//           ^                |                 ^
+//           |                v                 |
+//           |                |                 |
+//           ^               xn0                ^
+//           |                |                 |
+//           |                |                 |
+//           |                v                 |
+//          add <...-a1 <... xn0 ....> b1 ...> add
+//           ^                |                 ^
+//           |                v                 |
+//           |                |                 |
+//           |               xn1                |
+//           ^                |                 ^
+//           |                |                 |
+//           |                v                 |
+//           |<....-a2 <...  add ....> b2 ....> |
+
+
+//NOTE this is SIMILAR to 'filter_iir_2nd_order()'
+
+//2nd order direct form 2 iir filter
+
+double iir_process( st_iir &iir, double in )
+{
+if( iir.created == 0 ) return 0;
+
+if ( iir.bypass )
+	{
+	return in;
+	}
+
+double sum_rev = in - iir.a1 * iir.dly0 - iir.a2 * iir.dly1;
+
+double sum_fwd = sum_rev * iir.b0 + iir.b1 * iir.dly0 + iir.b2 * iir.dly1;
+
+iir.dly1 = iir.dly0;
+iir.dly0 = sum_rev;
+
+return sum_fwd;
+}
+
+
+
+
+
+
+
+
+
+
+
+//build a filter from a vector loaded with coeffs
+bool create_iir_filter_from_coeffs( st_iir &iir, vector<double> &vcoeff )
+{
+
+if( iir.created ) iir_delete_filter( iir );
+
+//if( vcoeff.size() == 0 ) return 0;
+if( vcoeff.size() < 5  ) return 0;
+
+
+iir.a1 = vcoeff[0];									//load coeffs
+iir.a2 = vcoeff[1];
+iir.b0 = vcoeff[2];
+iir.b1 = vcoeff[3];
+iir.b2 = vcoeff[4];
+
+iir.coeff_cnt = vcoeff.size();
+iir.bypass = 0;
+
+iir_init( iir );									//clear iir delays
+
+iir.created = 1;
+
+return 1;
+}
+//----------------------------------------------------------------------
+
+
+
+
+
+
+void create_filter_iir_using_q( filter_code::en_filter_pass_type_tag filt_type, float filt_freq_in, float filt_q_in, int srate_in, filter_code::st_iir_2nd_order_tag &iir )
+{
+vector<double> vfilt_coeff;
+float db_gain = 0;
+
+if( !calc_filter_iir_2nd_order( filt_type, filt_freq_in, filt_q_in, db_gain, srate_in, vfilt_coeff ) )
+	{
+	printf( "create_filter_iir_using_q() - failed to calc filter coeffs, freq %f, q %f\n", filt_freq_in, filt_q_in );
+	return;
+	}
+
+//printf( "create_filter0() - iir freq %f, q %f   %f %f %f %f %f\n", filt_freq0, filt_q0, iir0.coeff[0], iir0.coeff[1], iir0.coeff[2], iir0.coeff[3], iir0.coeff[4] );
+
+iir.bypass = 0;
+iir.coeff[0] = vfilt_coeff[0];		//a1
+iir.coeff[1] = vfilt_coeff[1];		//a2
+iir.coeff[2] = vfilt_coeff[2];		//b0
+iir.coeff[3] = vfilt_coeff[3];		//b1
+iir.coeff[4] = vfilt_coeff[4];		//b2
+
+iir.delay0[0] = 0;
+iir.delay0[1] = 0;
+
+iir.delay1[0] = 0;
+iir.delay1[1] = 0;
+iir.bypass = 1;
+
+}
+
+
+
+
+
+
+
+
+/*
+void filter_iir_2nd_order_slow( double &dsignal, double a1, double a2, double b0,  double b1, double b2, double &d0, double &d1 )
+{
+double sum_rev = dsignal - a1 * d0 - a2 * d1;
+
+double sum_fwd = sum_rev * b0 + b1 * d0 + b2 * d1;
+
+dsignal = sum_fwd;
+
+d1 = d0;
+d0 = sum_rev;
+}
+*/
+
+
+
+
+
+
 //calc spec filter coeffs suitable for a Direct Form 1 - IIR, 2nd Order
 
 //see ...
@@ -181,6 +442,7 @@ for ( int i = 0; i < viq.size(); i++ )					//for every sample
 //        |...> b2 ....> add <.... -a2 <...|
 
 
+//can be used with 'st_iir' or 'st_iir_2nd_order_tag' and associated functions:  iir_process()' or 'filter_iir_2nd_order()'
 
 bool calc_filter_iir_2nd_order( en_filter_pass_type_tag filt_type, double fc1, double in_Q, double db_gain, double srate, vector<double> &vcoeff )
 {
@@ -348,7 +610,16 @@ return 1;
 
 
 
-
+//v1.03
+double filter_fir_sinc(double x)
+{
+if (x != 0)
+	{
+	x *= M_PI;
+	return ( sin(x)/x);
+	}
+return 1;
+}
 
 
 
@@ -364,6 +635,7 @@ return 1;
 bool filter_fir_windowed( en_filter_window_type_tag   wnd_type, en_filter_pass_type_tag   filt_type, unsigned int taps, double fc1, double fc2, double srate, vector<double> &vcoeff )
 {
 int ilow;
+float x;
 
 if( ( taps & 0x1 ) == 1 )
 	{
@@ -395,7 +667,7 @@ double *hcoeff = new double[ taps + 10 ];
 
 vcoeff.clear();
 
-double twopi = 2.0 * M_PI;
+//double twopi = 2.0 * M_PI;
 
 double wc1, wc2;
 
@@ -459,6 +731,42 @@ for( double n = 0; n < N; n++ )
 		case fwt_blackman_harris:
             w[ i ] = 0.35875 - 0.48829 * cos( twopi * n / ( N - 1.0 ) ) + 0.14128 * cos( 2.0 * twopi * n / ( N - 1.0 ) ) - 0.01168 * cos( 3.0 * twopi * n / ( N - 1.0 ) );        //blackman-harris window impulse resp
 		break;
+
+
+		case fwt_lanczos1:							//v1.03
+			x = 2.0f * (float)n/(N-1);
+			x -= 1;
+			if (x < 0) x = - x;
+			if (x < 1) w[ i ] = ( filter_fir_sinc( x ) * filter_fir_sinc( x / 1.0 ) );
+			else w[ i ] = 0;
+		break;
+
+		case fwt_lanczos1_5:						//v1.03
+			x = 3.0f * (float)n/(N-1);
+			x -= 1.5f;
+			if (x < 0) x = - x;
+			if (x < 1.5) w[ i ] = ( filter_fir_sinc( x ) * filter_fir_sinc( x / 1.5 ) );
+			else w[ i ] = 0;
+		break;
+
+
+		case fwt_lanczos2:							//v1.03
+			x = 4.0f * (float)n/(N-1);
+			x -= 2;
+			if (x < 0) x = - x;
+			if (x < 2) w[ i ] = ( filter_fir_sinc( x ) * filter_fir_sinc( x / 2.0 ) );
+			else w[ i ] = 0;
+		break;
+
+		case fwt_lanczos3:							//v1.03
+			x = 6.0f * (float)n/(N-1);
+			x -= 3;
+			if (x < 0) x = - x;
+			if (x < 3) w[ i ] = ( filter_fir_sinc( x ) * filter_fir_sinc( x / 3.0 ) );
+			else w[ i ] = 0;
+		break;
+
+
 
 		default:
 			printf( "filter_fir_windowed() - unknown filter window type(wnd): %u\n", wnd_type );
@@ -532,8 +840,7 @@ return 1;
 
 
 
-//build a filter from a string loaded with coeffs, allocates memory so it must be deleted
-// coeff should be seperated by cr\lf
+//build an fir filter from a string loaded with coeffs, allocates memory so it must be deleted
 bool create_filter_from_coeffs( st_fir &fir, vector<double> &vcoeff )
 {
 
@@ -792,8 +1099,8 @@ return sum;
 
 
 
-
-
+/*
+// !!! this function is not useful, as iir filters are so simple, may as well code as req, v1.02
 void iir_init( st_iir &iir )
 {
 if( iir.created == 0 ) return;
@@ -806,6 +1113,12 @@ for( int i = 0; i < iir.coeff_cnt; i++ ) iir.prev[ i ] = 0;
 
 
 
+
+
+
+
+
+// !!! this function is not useful, as iir filters are so simple, may as well code as req, v1.02
 
 //delete filter and free any memory allocated
 void iir_delete_filter( st_iir &iir )
@@ -822,6 +1135,12 @@ delete iir.prev;
 
 
 
+
+
+
+
+// !!! this function is not useful, as iir filters are so simple, may as well code as req, v1.02
+
 //build a filter from a vector loaded with coeffs, allocates memory so it must be deleted
 bool create_iir_filter_from_coeffs( st_iir &iir, vector<double> &vcoeff )
 {
@@ -835,7 +1154,7 @@ iir.prev = new double [ vcoeff.size() ];
 
 
 
-for( int i = 0; i < vcoeff.size(); i++ )				//load coeffs
+for( int i = 0; i < vcoeff.size(); i++ )					//load coeffs
 	{
 	iir.coeff_ptr[ i ] = vcoeff[ i ];
 	}
@@ -844,11 +1163,12 @@ iir.coeff_cnt = vcoeff.size();
 iir.created = 1;
 //fir.bypass = 0;
 
-iir_init( iir );									//clear fir buf
+iir_init( iir );											//clear fir buf
 
 return 1;
 }
 
+*/
 
 
 
@@ -858,8 +1178,7 @@ return 1;
 
 
 
-
-//build a filter from file, allocates memory so it must be deleted
+//build an fir filter from file, allocates memory so it must be deleted
 bool create_filter_from_file( st_fir &fir, string fname )
 {
 mystr m1, m2;
@@ -872,7 +1191,7 @@ if( fir.created ) delete_filter( fir );
 
 if( m1.readfile( fname, 10000 ) == 0 )
 	{
-	cslpf( "create_filter_from_file() - failed to open file: '%s'\n", fname.c_str()  );
+	printf( "create_filter_from_file() - failed to open file: '%s'\n", fname.c_str()  );
 	}
 
 s1 = m1.str();
@@ -903,16 +1222,16 @@ while( 1 )
 
 if( vd.size() == 0 )
 	{
-	cslpf( "create_filter_from_file() - no coeff read: '%s'\n", fname.c_str()  );
+	printf( "create_filter_from_file() - no coeff read: '%s'\n", fname.c_str()  );
 	return 0;
 	}
 
 
-cslpf( "create_filter_from_file() - %d filter coeffs read from: '%s'\n", vd.size(), fname.c_str()  );
+printf( "create_filter_from_file() - %d filter coeffs read from: '%s'\n", (int)vd.size(), fname.c_str()  );
 
 if( vd.size() >=  10000 )
 	{
-	cslpf( "create_filter_from_file() - too many filter coeffs (%d) read from: '%s'\n", vd.size(), fname.c_str()  );
+	printf( "create_filter_from_file() - too many filter coeffs (%d) read from: '%s'\n", (int)vd.size(), fname.c_str()  );
 	return 0;
 	}
 
@@ -989,16 +1308,16 @@ while( 1 )
 
 if( vd.size() == 0 )
 	{
-	cslpf( "create_filter_from_string() - no coeff read\n"  );
+	printf( "create_filter_from_string() - no coeff read\n"  );
 	return 0;
 	}
 
 
-cslpf( "create_filter_from_string() - %d filter coeffs read\n", vd.size() );
+printf( "create_filter_from_string() - %d filter coeffs read\n", vd.size() );
 
 if( vd.size() >=  10000 )
 	{
-	cslpf( "create_filter_from_string() - too many filter coeffs (%d) read \n", vd.size() );
+	printf( "create_filter_from_string() - too many filter coeffs (%d) read \n", vd.size() );
 	return 0;
 	}
 
@@ -1024,8 +1343,7 @@ return 1;
 }
 
 
-
-
+}		//namespace filter_code
 
 
 
