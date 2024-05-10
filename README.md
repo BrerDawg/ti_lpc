@@ -92,7 +92,7 @@ To open the 'help.txt' file from Help menu, edit script below:</br>
 
 
 
-You can use a (antique) program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible a binary file from a wave file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
+You can use an (antique) program called: QBoxPro (with DosBox running Windows 3.11) to create a tms5220 lpc compatible binary file from a wave file. For an excellent guide, refer: http://furrtek.free.fr/index.php?a=speakandspell&ss=9&i=2
 
 Select a binary file to play using 'B.File' button.
 ##### For command line version:
