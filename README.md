@@ -23,7 +23,7 @@ Where pieces of code or ideas are originated from other people, the comments in 
 
 
 ## Build
-The code was developed with gcc on Ubuntu 20.04 64 bit, may work for Windows, but has not been tested some time.</br>
+The code was developed with gcc on Ubuntu 20.04 64 bit, may work for Windows, but has not been tested for some time.</br>
 ##### For gui version:
 Requires: RTAudio, pulseaudio, jack, and FLTK libraries for linking, fltk-1.3.4-2 or better should work.</br>
 
@@ -55,7 +55,7 @@ UK rom0 file: cd2303.vsm					//quick way to to hear difference is sounding the Z
 UK rom1 file: cd2304.vsm</br>
 
 
-Note: some units only had one Rom, these Roms are organised differently and their alphabet (if it was a Speak and Spell), various phrases and tone addresses are unknown, this code will not correctly show these roms. You will have to explore these roms using various controls provided to help map out addresses of where things are stored.
+Note: Some units only had one Rom, these Roms are organised differently, their alphabet (if it was a Speak and Spell) and various phrases and tone addresses are unknown, this code will not correctly show these roms. You will have to explore these roms using various controls provided to help map out addresses of where things are stored.
  
 (Roms are optional, if you have hex/decimal speech strings you can use them as is without roms).
 
